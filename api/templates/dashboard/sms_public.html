@@ -102,6 +102,8 @@ let todayCount = 0
 let evtSrc   = null
 let topRanges = {}
 let sourceLabel = 'websocket'
+let _refreshInterval = null   // FIX: track interval supaya bisa di-clear
+let _reconnectTimer  = null   // FIX: track reconnect timer supaya bisa di-cancel
 
 function timeStr(iso) {
   if (!iso) return '—'
@@ -210,7 +212,10 @@ function startStream() {
   evtSrc.onerror = () => {
     setWsStatus(false, 'Reconnecting...')
     evtSrc.close()
-    setTimeout(startStream, 3000)
+    evtSrc = null
+    // FIX: cancel timer lama sebelum buat yang baru
+    if (_reconnectTimer) { clearTimeout(_reconnectTimer); _reconnectTimer = null }
+    _reconnectTimer = setTimeout(() => { _reconnectTimer = null; startStream() }, 3000)
   }
 }
 
@@ -241,18 +246,30 @@ async function fetchNow() {
 fetchNow()
 startStream()
 
-// Auto refresh data tiap 30 detik (backup)
-setInterval(fetchNow, 30000)
+// Auto refresh tiap 30 detik — simpan referensi biar bisa di-clear
+_refreshInterval = setInterval(fetchNow, 30000)
 
-// BUGFIX: cleanup SSE saat pindah halaman — mencegah page lock
-window.addEventListener('beforeunload', () => {
+// FIX: cleanup SEMUA resources saat pindah halaman — cegah page hang/lock
+function _cleanup() {
+  // Stop EventSource
   if (evtSrc) { try { evtSrc.close() } catch(e){} evtSrc = null }
-})
+  // Cancel reconnect timer
+  if (_reconnectTimer) { clearTimeout(_reconnectTimer); _reconnectTimer = null }
+  // Stop interval
+  if (_refreshInterval) { clearInterval(_refreshInterval); _refreshInterval = null }
+}
+
+// pagehide lebih reliable dari beforeunload (covers bfcache juga)
+window.addEventListener('pagehide', _cleanup)
+window.addEventListener('beforeunload', _cleanup)
+
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden && evtSrc) {
-    try { evtSrc.close() } catch(e){}
-    evtSrc = null
+  if (document.hidden) {
+    // Tab tersembunyi — pause stream tapi jangan stop interval
+    if (evtSrc) { try { evtSrc.close() } catch(e){} evtSrc = null }
+    if (_reconnectTimer) { clearTimeout(_reconnectTimer); _reconnectTimer = null }
   } else if (!document.hidden && !evtSrc) {
+    // Tab aktif lagi — restart stream
     startStream()
   }
 })

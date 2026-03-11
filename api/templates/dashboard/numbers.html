@@ -238,6 +238,26 @@ async function loadMy(){
   }
 }
 
+// ── Pagination helper: prev/next + window of 7 pages ──────────────
+function _buildPager(cur, total, varName, callFn) {
+  if (total <= 1) return '';
+  const btns = [];
+  // Prev
+  btns.push(`<button class="pg-btn" ${cur<=1?'disabled':''} onclick="${varName}=${cur-1};${callFn}">‹</button>`);
+  // Page window: show 7 pages centered on current
+  const half = 3;
+  let from = Math.max(1, cur - half);
+  let to   = Math.min(total, from + 6);
+  if (to - from < 6) from = Math.max(1, to - 6);
+  if (from > 1)  btns.push(`<button class="pg-btn" onclick="${varName}=1;${callFn}">1</button>${from>2?'<span style="padding:0 4px;color:var(--ink3)">…</span>':''}`);
+  for (let p = from; p <= to; p++)
+    btns.push(`<button class="pg-btn${p===cur?' active':''}" onclick="${varName}=${p};${callFn}">${p}</button>`);
+  if (to < total) btns.push(`${to<total-1?'<span style="padding:0 4px;color:var(--ink3)">…</span>':''}<button class="pg-btn" onclick="${varName}=${total};${callFn}">${total}</button>`);
+  // Next
+  btns.push(`<button class="pg-btn" ${cur>=total?'disabled':''} onclick="${varName}=${cur+1};${callFn}">›</button>`);
+  return btns.join('');
+}
+
 function renderMy(){
   const tbody=document.getElementById('my-tbody');
   const pg=document.getElementById('my-pager');
@@ -259,11 +279,9 @@ function renderMy(){
 </tr>`).join('');
   const tot=_myData.length, pages=Math.ceil(tot/_myPS);
   document.getElementById('my-info').textContent=`Showing ${s+1}–${Math.min(e,tot)} of ${tot}`;
-  document.getElementById('my-pg-btns').innerHTML=Array.from({length:Math.min(pages,10)},(_,i)=>i+1).map(p=>
-    `<button class="pg-btn${p===_myPage?' active':''}" onclick="_myPage=${p};renderMy()">${p}</button>`).join('');
+  document.getElementById('my-pg-btns').innerHTML=_buildPager(_myPage,pages,'_myPage','renderMy()');
   pg.style.display='';
 }
-
 async function returnNum(tid,num,btn){
   if(!tid) return showToast('Termination ID tidak ditemukan','error');
   if(!confirm('Return nomor '+num+'?')) return;
@@ -335,8 +353,7 @@ function renderTest(){
 </tr>`).join('');
   const tot=_testData.length, pages=Math.ceil(tot/_testPS);
   document.getElementById('test-info').textContent=`Showing ${s+1}–${Math.min(e,tot)} of ${tot}`;
-  document.getElementById('test-pg-btns').innerHTML=Array.from({length:Math.min(pages,10)},(_,i)=>i+1).map(p=>
-    `<button class="pg-btn${p===_testPage?' active':''}" onclick="_testPage=${p};renderTest()">${p}</button>`).join('');
+  document.getElementById('test-pg-btns').innerHTML=_buildPager(_testPage,pages,'_testPage','renderTest()');
   pg.style.display='';
 }
 
