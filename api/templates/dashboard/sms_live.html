@@ -1,29 +1,26 @@
 {% extends "dashboard/base.html" %}
-{% block page_title %}Live SMS{% endblock %}
+{% block page_title %}SMS Live My Numbers{% endblock %}
 {% block content %}
 <style>
 .iv-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden}
 .iv-banner{background:#f59e0b;padding:10px 18px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#fff}
-.live-wrap{display:grid;grid-template-columns:1fr 210px;min-height:420px}
+.live-wrap{display:grid;grid-template-columns:1fr 200px;min-height:420px}
 .live-left{border-right:1px solid var(--border);overflow-x:auto}
 .live-right{padding:14px;overflow-y:auto;max-height:620px}
-.live-right-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);margin-bottom:10px}
 .ltbl{width:100%;border-collapse:collapse}
 .ltbl thead th{padding:8px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);background:var(--bg2);border-bottom:2px solid var(--border);white-space:nowrap}
 .ltbl tbody td{padding:9px 14px;border-bottom:1px solid var(--border);font-size:12.5px;vertical-align:middle}
 .ltbl tbody tr:hover td{background:rgba(245,158,11,.05)}
-/* new-row flash animation */
 @keyframes rowflash{0%{background:rgba(245,158,11,.22)}100%{background:transparent}}
 .row-new{animation:rowflash .8s ease-out}
 .ctrl-bar{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap}
 .ctrl-inp{padding:6px 11px;border:1px solid var(--border2);border-radius:7px;background:var(--card);color:var(--ink);font-size:12px;width:160px}
 .ctrl-btn{border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;transition:.15s}
-.ctrl-btn.primary{background:var(--accent);color:#fff}.ctrl-btn.primary:hover{opacity:.85}
-.ctrl-btn.gray{background:var(--card2);color:var(--ink2);border:1px solid var(--border2)}.ctrl-btn.gray:hover{background:var(--border)}
+.ctrl-btn.primary{background:#f59e0b;color:#fff}.ctrl-btn.primary:hover{opacity:.85}
+.ctrl-btn.gray{background:var(--card2);color:var(--ink2);border:1px solid var(--border2)}
 .ctrl-btn.red{background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.2)}.ctrl-btn.red:hover{background:#ef4444;color:#fff}
 .stat-bar{display:flex;align-items:center;gap:14px;padding:9px 14px;border-bottom:1px solid var(--border);background:var(--bg2);flex-wrap:wrap}
-.stat-item{font-size:12px;color:var(--ink2)}
-.stat-item b{color:var(--ink);font-family:var(--mono)}
+.stat-item{font-size:12px;color:var(--ink2)}.stat-item b{color:var(--ink);font-family:var(--mono)}
 .dot-live{width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;box-shadow:0 0 6px #22c55e;animation:pulse 1.5s infinite}
 .dot-dead{width:8px;height:8px;border-radius:50%;background:#ef4444;display:inline-block}
 .dot-wait{width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;animation:pulse 1.5s infinite}
@@ -44,214 +41,210 @@
 </style>
 
 <div class="page-hdr">
-  <div class="page-title">📡 Live SMS</div>
-  <div class="page-sub">SMS masuk ke nomor kamu — real-time instant, no delay</div>
+  <div class="page-title">⚡ SMS Live My Numbers</div>
+  <div class="page-sub">SMS masuk ke nomor kamu (My Numbers) — real-time instant</div>
 </div>
 
 <div class="iv-card">
-  <!-- Banner -->
   <div class="iv-banner">
-    <span id="dotIcon" class="dot-wait"></span>
-    Live SMS — My Numbers
-    <span id="wsBadge" class="ws-badge warn" style="margin-left:auto">⟳ Connecting...</span>
+    <span>⚡</span><span>Live SMS — My Numbers</span>
+    <span id="ws-badge" class="ws-badge err" style="margin-left:auto">Connecting...</span>
   </div>
 
-  <!-- Filter bar -->
-  <div class="ctrl-bar">
-    <input type="text" id="sidFilter" class="ctrl-inp" placeholder="Filter SID / service..." oninput="applyFilter()"/>
-    <input type="text" id="numFilter" class="ctrl-inp" placeholder="Filter number..." oninput="applyFilter()"/>
-    <button class="ctrl-btn gray" onclick="doManualRefresh()">↻ Refresh</button>
-    <button class="ctrl-btn red"  onclick="doClear()">✕ Clear</button>
-  </div>
-
-  <!-- Stats bar -->
   <div class="stat-bar">
-    <span class="stat-item">Total: <b id="cntTotal">0</b></span>
-    <span class="stat-item">Session: <b id="cntSession">0</b></span>
-    <span class="stat-item">Source: <b id="srcLabel">-</b></span>
-    <span id="lastEvt" style="margin-left:auto;font-size:11px;color:var(--ink3)"></span>
+    <div class="stat-item"><span id="ws-dot" class="dot-dead"></span> <b id="ws-state">Offline</b></div>
+    <div class="stat-item">Total: <b id="sms-total">0</b></div>
+    <div class="stat-item">Hari ini: <b id="sms-today">0</b></div>
+    <div class="stat-item">Sumber: <b id="sms-source">—</b></div>
   </div>
 
-  <!-- Two-col body -->
+  <div class="ctrl-bar">
+    <input class="ctrl-inp" id="filter-sid" placeholder="Filter SID / sender..." oninput="applyFilter()"/>
+    <input class="ctrl-inp" id="filter-num" placeholder="Filter nomor..." oninput="applyFilter()"/>
+    <button class="ctrl-btn gray" onclick="clearFilters()">✕ Clear</button>
+    <button class="ctrl-btn red" onclick="clearCache()">🗑 Clear</button>
+    <button class="ctrl-btn gray" onclick="fetchNow()" style="margin-left:auto">↻ Refresh</button>
+  </div>
+
   <div class="live-wrap">
-    <!-- Left: SMS table -->
     <div class="live-left">
       <table class="ltbl">
         <thead>
           <tr>
-            <th>Number</th>
-            <th>SID</th>
-            <th>Paid</th>
-            <th style="width:45%">Message</th>
-            <th>Time</th>
+            <th>Range</th><th>Number</th><th>SID / Sender</th>
+            <th>Message</th><th>Paid</th><th>Waktu</th>
           </tr>
         </thead>
-        <tbody id="liveBody">
-          <tr><td colspan="5" class="iv-empty">
-            <span class="dot-wait" style="vertical-align:middle;margin-right:6px"></span>
-            Menghubungkan ke WebSocket iVAS...
-          </td></tr>
+        <tbody id="live-tbody">
+          <tr><td colspan="6" class="iv-empty"><div class="spin" style="margin:0 auto 8px"></div><div>Memuat SMS live...</div></td></tr>
         </tbody>
       </table>
     </div>
 
-    <!-- Right: Ranges panel -->
     <div class="live-right">
-      <div class="live-right-title">My Numbers</div>
-      <div id="rngPanel"><div style="font-size:12px;color:var(--ink3)"><span class="spin"></span></div></div>
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);margin-bottom:10px">My Numbers (200)</div>
+      <div id="my-numbers-list"></div>
     </div>
   </div>
 </div>
 
 <script>
-let _all = [];        // semua SMS yang diterima session ini
-let _filtered = [];   // setelah filter
-let _sse = null;      // EventSource object
-let _sseRetry = 0;
-const MAX_DISPLAY = 500;
+let allSms = [], evtSrc = null, myNumbers = {}
+let todayCount = 0
 
-// ── Render table ──────────────────────────────────
-function renderTable(rows, flash=false) {
-  const body = document.getElementById('liveBody');
-  if (!rows.length) {
-    body.innerHTML = '<tr><td colspan="5" class="iv-empty">Belum ada SMS. Tunggu SMS masuk...</td></tr>';
-    return;
-  }
-  // Hanya tampil 200 terakhir (biar performa tetap oke)
-  const display = rows.slice(0, 200);
-  body.innerHTML = display.map((s, idx) => `
-  <tr class="${flash && idx===0 ? 'row-new' : ''}">
-    <td class="num-cell">${escHtml(s.number||s.originator||'-')}</td>
-    <td>${s.sid?`<span class="sid-pill">${escHtml(s.sid)}</span>`:'-'}</td>
-    <td>${s.paid==='Paid'?'<span class="paid-b">Paid</span>':'<span class="unpaid-b">Unpaid</span>'}</td>
-    <td style="word-break:break-word;line-height:1.5;max-width:280px">${escHtml(s.message||'')}</td>
-    <td style="font-family:var(--mono);font-size:11px;color:var(--ink3);white-space:nowrap">${(s.received_at||'').slice(11,19)}</td>
-  </tr>`).join('');
-  document.getElementById('cntTotal').textContent = rows.length;
-  document.getElementById('cntSession').textContent = _all.length;
+function timeStr(iso) {
+  if (!iso) return '—'
+  try { return new Date(iso).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',second:'2-digit'}) }
+  catch(e) { return iso.slice(11,19)||'—' }
 }
+function escH(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
 
 function applyFilter() {
-  const sf = document.getElementById('sidFilter').value.trim().toLowerCase();
-  const nf = document.getElementById('numFilter').value.trim();
-  _filtered = _all;
-  if (sf) _filtered = _filtered.filter(s =>
-    (s.sid||'').toLowerCase().includes(sf) || (s.message||'').toLowerCase().includes(sf));
-  if (nf) _filtered = _filtered.filter(s =>
-    (s.number||'').includes(nf) || (s.originator||'').includes(nf));
-  renderTable(_filtered);
+  const sid = document.getElementById('filter-sid').value.toLowerCase()
+  const num = document.getElementById('filter-num').value.toLowerCase()
+  const filtered = allSms.filter(s =>
+    (!sid || (s.sid||s.originator||'').toLowerCase().includes(sid)||(s.message||'').toLowerCase().includes(sid)) &&
+    (!num || (s.number||'').includes(num)||(s.recipient||'').includes(num))
+  )
+  renderTable(filtered)
 }
 
-// ── SSE EventSource — instant push ───────────────
-function connectSSE() {
-  if (_sse) { try { _sse.close(); } catch(_) {} }
-
-  setBadge('connecting');
-  const url = '/api/sms/live/stream';
-  _sse = new EventSource(url);
-
-  _sse.onopen = () => {
-    setBadge('connected');
-    _sseRetry = 0;
-    console.log('[SSE] connected');
-  };
-
-  _sse.onmessage = (e) => {
-    try {
-      const d = JSON.parse(e.data);
-      if (d.type === 'connected') { setBadge('connected'); return; }
-      // SMS baru masuk — tambah ke depan
-      _all.unshift(d);
-      if (_all.length > MAX_DISPLAY) _all.pop();
-      document.getElementById('lastEvt').textContent =
-        'Last: ' + (d.received_at||'').slice(11,19);
-      document.getElementById('srcLabel').textContent = d.source || 'ws_live';
-      applyFilter();
-      renderTable(_filtered, true);  // flash baris pertama
-    } catch(_) {}
-  };
-
-  _sse.onerror = () => {
-    setBadge('error');
-    _sse.close();
-    // Reconnect otomatis: 1s, 2s, 3s... max 5s
-    _sseRetry = Math.min(_sseRetry + 1, 5);
-    setTimeout(connectSSE, _sseRetry * 1000);
-    console.log(`[SSE] error, retry in ${_sseRetry}s`);
-  };
+function clearFilters() {
+  document.getElementById('filter-sid').value = ''
+  document.getElementById('filter-num').value = ''
+  renderTable(allSms)
 }
 
-function setBadge(state) {
-  const badge = document.getElementById('wsBadge');
-  const dot   = document.getElementById('dotIcon');
-  if (state === 'connected') {
-    badge.textContent = '⬤ WS Live'; badge.className = 'ws-badge ok';
-    dot.className = 'dot-live';
-  } else if (state === 'error') {
-    badge.textContent = '⬤ Disconnected'; badge.className = 'ws-badge err';
-    dot.className = 'dot-dead';
+function renderTable(rows) {
+  const tb = document.getElementById('live-tbody')
+  if (!rows.length) {
+    tb.innerHTML = '<tr><td colspan="6" class="iv-empty">Belum ada SMS masuk ke nomor kamu</td></tr>'
+    return
+  }
+  tb.innerHTML = rows.slice(0,300).map(s => `
+    <tr>
+      <td style="font-size:11px;font-weight:600;color:var(--ink2)">${escH(s.range||'—')}</td>
+      <td class="num-cell">${escH(s.number||s.recipient||'—')}</td>
+      <td><span class="sid-pill" title="${escH(s.originator||s.sid||'')}">${escH((s.originator||s.sid||'—').slice(0,18))}</span></td>
+      <td style="max-width:240px;font-size:12px">${escH(s.message||'—')}</td>
+      <td>${s.paid==='Paid'?'<span class="paid-b">Paid</span>':'<span class="unpaid-b">Unpaid</span>'}</td>
+      <td style="font-size:11px;color:var(--ink3);white-space:nowrap;font-family:var(--mono)">${timeStr(s.received_at)}</td>
+    </tr>`).join('')
+}
+
+function setWsStatus(state, label) {
+  const dot = document.getElementById('ws-dot')
+  const st  = document.getElementById('ws-state')
+  const badge = document.getElementById('ws-badge')
+  if (state==='ok') {
+    dot.className='dot-live'; st.textContent='Live'
+    badge.className='ws-badge ok'; badge.textContent='● LIVE'
+  } else if (state==='warn') {
+    dot.className='dot-wait'; st.textContent=label||'Connecting'
+    badge.className='ws-badge warn'; badge.textContent=label||'...'
   } else {
-    badge.textContent = '⟳ Connecting...'; badge.className = 'ws-badge warn';
-    dot.className = 'dot-wait';
+    dot.className='dot-dead'; st.textContent=label||'Offline'
+    badge.className='ws-badge err'; badge.textContent=label||'Offline'
   }
 }
 
-// ── Manual refresh — load history dari cache ──────
-async function doManualRefresh() {
-  try {
-    const d = await apiFetch('/api/sms/live?limit=200');
-    const newItems = d.sms || [];
-    // Merge dengan yang sudah ada, hindari duplikat
-    const seen = new Set(_all.map(s => s.received_at + s.number + s.message));
-    for (const s of newItems) {
-      const key = s.received_at + s.number + s.message;
-      if (!seen.has(key)) { _all.push(s); seen.add(key); }
-    }
-    _all.sort((a,b) => (b.received_at||'').localeCompare(a.received_at||''));
-    document.getElementById('srcLabel').textContent = d.source||'cache';
-    applyFilter();
-    renderTable(_filtered);
-  } catch(e) { console.error(e); }
-}
-
-// ── Clear cache ────────────────────────────────────
-async function doClear() {
-  await apiFetch('/api/sms/live/clear', {method:'POST'});
-  _all = []; _filtered = [];
-  renderTable([]);
-  document.getElementById('cntTotal').textContent = '0';
-  document.getElementById('cntSession').textContent = '0';
-}
-
-// ── Load ranges panel ──────────────────────────────
-async function loadRanges() {
-  const panel = document.getElementById('rngPanel');
-  try {
-    const d = await apiFetch('/api/numbers/my-list?limit=500');
-    const nums = d.numbers || [];
-    const rngs = {};
-    for (const n of nums) {
-      const r = n.range_name || 'Unknown';
-      if (!rngs[r]) rngs[r] = 0;
-      rngs[r]++;
-    }
-    if (!Object.keys(rngs).length) {
-      panel.innerHTML = '<div style="font-size:12px;color:var(--ink3)">Belum ada nomor.</div>';
-      return;
-    }
-    panel.innerHTML = Object.entries(rngs).map(([r,c]) => `
-    <div class="rng-item">
-      <div class="rng-item-name">${escHtml(r)}</div>
-      <div class="rng-item-cnt">${c} number${c>1?'s':''}</div>
-    </div>`).join('');
-  } catch(e) {
-    panel.innerHTML = '<div style="font-size:12px;color:#ef4444">Gagal load</div>';
+function addSms(s, animate=false) {
+  const key = (s.number||s.recipient||'')+'|'+(s.message||'').slice(0,30)+'|'+(s.received_at||'').slice(0,19)
+  if (allSms.find(x=>(x.number||x.recipient||'')+'|'+(x.message||'').slice(0,30)+'|'+(x.received_at||'').slice(0,19)===key)) return
+  allSms.unshift(s)
+  if (allSms.length>500) allSms.pop()
+  const today = new Date().toDateString()
+  if (s.received_at && new Date(s.received_at).toDateString()===today) todayCount++
+  document.getElementById('sms-total').textContent = allSms.length
+  document.getElementById('sms-today').textContent = todayCount
+  applyFilter()
+  if (animate) {
+    const tb = document.getElementById('live-tbody')
+    const fr = tb.querySelector('tr')
+    if (fr) { fr.classList.remove('row-new'); void fr.offsetWidth; fr.classList.add('row-new') }
   }
 }
 
-// ── Init ───────────────────────────────────────────
-connectSSE();
-doManualRefresh();
-loadRanges();
+async function clearCache() {
+  await apiJson('/api/sms/live/clear', {})
+  allSms = []; todayCount = 0
+  document.getElementById('sms-total').textContent = 0
+  document.getElementById('sms-today').textContent = 0
+  renderTable([])
+  toast('Cache dikosongkan','ok')
+}
+
+function startStream() {
+  if (evtSrc) { try { evtSrc.close() } catch(e){} }
+  setWsStatus('warn','Connecting...')
+  evtSrc = new EventSource('/api/sms/live/stream')
+  evtSrc.onopen = () => {
+    setWsStatus('ok')
+    document.getElementById('sms-source').textContent = 'WebSocket Stream'
+  }
+  evtSrc.onmessage = (e) => {
+    try {
+      const d = JSON.parse(e.data)
+      if (d.type === 'connected') { setWsStatus('ok'); return }
+      addSms(d, true)
+    } catch(err) {}
+  }
+  evtSrc.onerror = () => {
+    setWsStatus('warn','Reconnecting...')
+    evtSrc.close()
+    setTimeout(startStream, 3000)
+  }
+}
+
+async function fetchNow() {
+  try {
+    const d = await apiFetch('/api/sms/live?limit=200')
+    if (!d || d.status !== 'ok') {
+      // Cek apakah iVAS belum login
+      if (d && d.ivas_expired) {
+        document.getElementById('live-tbody').innerHTML = `<tr><td colspan="6" class="iv-empty" style="color:var(--yellow)">⚠️ iVAS belum login. Pergi ke <a href="/dashboard/ivas-login" style="color:var(--accent)">Login iVAS</a></td></tr>`
+      }
+      return
+    }
+    // Merge dengan data yang ada
+    let added = 0
+    ;(d.sms||[]).forEach(s => {
+      const key = (s.number||s.recipient||'')+'|'+(s.message||'').slice(0,30)+'|'+(s.received_at||'').slice(0,19)
+      if (!allSms.find(x=>(x.number||x.recipient||'')+'|'+(x.message||'').slice(0,30)+'|'+(x.received_at||'').slice(0,19)===key)) {
+        allSms.push(s); added++
+        const today = new Date().toDateString()
+        if (s.received_at && new Date(s.received_at).toDateString()===today) todayCount++
+      }
+    })
+    allSms.sort((a,b)=>(b.received_at||'').localeCompare(a.received_at||''))
+    document.getElementById('sms-total').textContent = allSms.length
+    document.getElementById('sms-today').textContent = todayCount
+    document.getElementById('sms-source').textContent = d.source||'cache'
+    if (allSms.length > 0) setWsStatus('ok')
+    applyFilter()
+  } catch(e) { console.warn('fetchNow error:', e) }
+}
+
+async function loadMyNumbers() {
+  try {
+    const d = await apiFetch('/api/numbers/my-list?limit=200')
+    if (!d || d.status !== 'ok') return
+    const box = document.getElementById('my-numbers-list')
+    const nums = d.numbers||[]
+    if (!nums.length) { box.innerHTML = '<div style="font-size:12px;color:var(--ink3)">Belum ada nomor</div>'; return }
+    // Group by range
+    const byRange = {}
+    nums.forEach(n => { const r = n.range_name||'Unknown'; if(!byRange[r]) byRange[r]=[]; byRange[r].push(n) })
+    box.innerHTML = Object.entries(byRange).map(([rng,ns]) =>
+      `<div class="rng-item"><div class="rng-item-name">${escH(rng)}</div><div class="rng-item-cnt">${ns.length} nomor</div></div>`
+    ).join('')
+  } catch(e) {}
+}
+
+// Init
+fetchNow()
+startStream()
+loadMyNumbers()
+setInterval(fetchNow, 15000)
 </script>
 {% endblock %}

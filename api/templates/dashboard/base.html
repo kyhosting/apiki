@@ -63,9 +63,15 @@
 .codeblock .k{color:#c678dd}.codeblock .s{color:#98c379}.codeblock .v{color:#e5c07b}.codeblock .c{color:var(--ink3)}
 
 @media(max-width:768px){
-  .sb{transform:translateX(-100%)}.sb.open{transform:none}
-  .main{margin-left:0}.hbg{display:flex}.overlay.show{display:block}
-  .content{padding:14px}.stats-grid{grid-template-columns:repeat(2,1fr)}
+  .sb{transform:translateX(-248px)}.sb.open{transform:none}
+  .main{margin-left:0!important}.hbg{display:flex}.overlay.show{display:block}
+  .content{padding:12px 10px}.stats-grid{grid-template-columns:repeat(2,1fr)}
+  .page-hdr{margin-bottom:14px}
+  .iv-stats{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:480px){
+  .content{padding:10px 8px}
+  .stats-grid{grid-template-columns:1fr}
 }
 </style>
 {% endblock %}
@@ -86,14 +92,13 @@
       </a>
 
       <div class="sb-sec">SMS Monitoring</div>
-      <a href="/dashboard/sms-live" class="sb-item {% if '/sms-live' in request.path %}active{% endif %}"><span class="ic">⚡</span>SMS Live <span id="live-count" class="sb-badge sb-badge-green" style="display:none">0</span></a>
+      <a href="/dashboard/sms-live" class="sb-item {% if '/sms-live' in request.path %}active{% endif %}"><span class="ic">⚡</span>SMS Live My <span id="live-count" class="sb-badge sb-badge-green" style="display:none">0</span></a>
+      <a href="/dashboard/sms-public" class="sb-item {% if '/sms-public' in request.path %}active{% endif %}"><span class="ic">🌐</span>SMS Live Public <span id="public-count" class="sb-badge sb-badge-green" style="display:none">0</span></a>
       <a href="/dashboard/sms-received" class="sb-item {% if '/sms-received' in request.path %}active{% endif %}"><span class="ic">✉</span>SMS Received</a>
       <a href="/dashboard/otp-received" class="sb-item {% if '/otp-received' in request.path %}active{% endif %}"><span class="ic">🔑</span>OTP / Pesan Masuk</a>
 
       <div class="sb-sec">Numbers</div>
-      <a href="/dashboard/numbers" class="sb-item {% if '/numbers' in request.path and '/check' not in request.path %}active{% endif %}"><span class="ic">☎</span>My Numbers</a>
-      <a href="/dashboard/check-number" class="sb-item {% if '/check-number' in request.path %}active{% endif %}"><span class="ic">◎</span>Cek Nomor</a>
-      <a href="/dashboard/ranges" class="sb-item {% if '/ranges' in request.path %}active{% endif %}"><span class="ic">◈</span>Cari Range</a>
+      <a href="/dashboard/numbers" class="sb-item {% if '/numbers' in request.path %}active{% endif %}"><span class="ic">☎</span>Numbers</a>
 
       <div class="sb-sec">API</div>
       <a href="/dashboard/apikey" class="sb-item {% if '/apikey' in request.path %}active{% endif %}"><span class="ic">⚿</span>API Key</a>

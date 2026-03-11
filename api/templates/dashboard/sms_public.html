@@ -1,0 +1,247 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}SMS Live Public{% endblock %}
+{% block content %}
+<style>
+.iv-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.iv-banner{background:#3b82f6;padding:10px 18px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#fff}
+.live-wrap{display:grid;grid-template-columns:1fr 200px;min-height:420px}
+.live-left{border-right:1px solid var(--border);overflow-x:auto}
+.live-right{padding:14px;overflow-y:auto;max-height:620px}
+.ltbl{width:100%;border-collapse:collapse}
+.ltbl thead th{padding:8px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);background:var(--bg2);border-bottom:2px solid var(--border);white-space:nowrap}
+.ltbl tbody td{padding:9px 14px;border-bottom:1px solid var(--border);font-size:12.5px;vertical-align:middle}
+.ltbl tbody tr:hover td{background:rgba(59,130,246,.05)}
+@keyframes rowflash{0%{background:rgba(59,130,246,.18)}100%{background:transparent}}
+.row-new{animation:rowflash .8s ease-out}
+.ctrl-bar{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.ctrl-inp{padding:6px 11px;border:1px solid var(--border2);border-radius:7px;background:var(--card);color:var(--ink);font-size:12px;width:160px}
+.ctrl-btn{border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;transition:.15s}
+.ctrl-btn.primary{background:#3b82f6;color:#fff}.ctrl-btn.primary:hover{opacity:.85}
+.ctrl-btn.gray{background:var(--card2);color:var(--ink2);border:1px solid var(--border2)}
+.ctrl-btn.red{background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.2)}.ctrl-btn.red:hover{background:#ef4444;color:#fff}
+.stat-bar{display:flex;align-items:center;gap:14px;padding:9px 14px;border-bottom:1px solid var(--border);background:var(--bg2);flex-wrap:wrap}
+.stat-item{font-size:12px;color:var(--ink2)}.stat-item b{color:var(--ink);font-family:var(--mono)}
+.dot-live{width:8px;height:8px;border-radius:50%;background:#3b82f6;display:inline-block;box-shadow:0 0 6px #3b82f6;animation:pulse 1.5s infinite}
+.dot-dead{width:8px;height:8px;border-radius:50%;background:#ef4444;display:inline-block}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.ws-badge{font-size:11px;font-weight:700;padding:2px 9px;border-radius:8px;margin-left:auto}
+.ws-badge.ok{background:rgba(59,130,246,.13);color:#3b82f6}
+.ws-badge.err{background:rgba(239,68,68,.13);color:#ef4444}
+.sid-pill{background:#3b82f6;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:5px;display:inline-block;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.paid-b{background:rgba(34,197,94,.13);color:#22c55e;font-size:10px;font-weight:700;padding:1px 7px;border-radius:5px}
+.unpaid-b{background:rgba(239,68,68,.13);color:#ef4444;font-size:10px;font-weight:700;padding:1px 7px;border-radius:5px}
+.num-cell{font-family:var(--mono);font-size:12px;color:var(--ink2)}
+.rng-item{padding:8px 10px;border-radius:8px;background:var(--card2);border:1px solid var(--border);margin-bottom:6px;font-size:12px}
+.rng-item-name{font-weight:600;color:var(--ink)}
+.rng-item-cnt{font-size:11px;color:var(--ink3);font-family:var(--mono);margin-top:2px}
+.iv-empty{text-align:center;padding:44px;color:var(--ink3);font-size:13px}
+.country-flag{font-size:18px;margin-right:4px}
+@media(max-width:640px){.live-wrap{grid-template-columns:1fr}.live-right{border-top:1px solid var(--border)}}
+</style>
+
+<div class="page-hdr">
+  <div class="page-title">🌐 SMS Live Public</div>
+  <div class="page-sub">SMS test publik dari semua range — real-time via WebSocket</div>
+</div>
+
+<div class="iv-card">
+  <div class="iv-banner">
+    <span>🌐</span>
+    <span>Live Test SMS — Public (semua user iVAS)</span>
+    <span id="ws-badge-pub" class="ws-badge err" style="margin-left:auto">Connecting...</span>
+  </div>
+
+  <!-- Stat bar -->
+  <div class="stat-bar">
+    <div class="stat-item"><span id="ws-dot-pub" class="dot-dead"></span> <b id="ws-state-pub">Offline</b></div>
+    <div class="stat-item">Total: <b id="pub-total">0</b></div>
+    <div class="stat-item">Hari ini: <b id="pub-today">0</b></div>
+    <div class="stat-item" id="pub-source-label" style="display:none">Sumber: <b id="pub-source">—</b></div>
+  </div>
+
+  <!-- Control bar -->
+  <div class="ctrl-bar">
+    <input class="ctrl-inp" id="filter-sid" placeholder="Filter SID / sender..." oninput="applyFilter()"/>
+    <input class="ctrl-inp" id="filter-num" placeholder="Filter nomor..." oninput="applyFilter()"/>
+    <input class="ctrl-inp" id="filter-rng" placeholder="Filter range..." oninput="applyFilter()"/>
+    <button class="ctrl-btn gray" onclick="clearFilters()">✕ Clear</button>
+    <button class="ctrl-btn red" onclick="clearCache()">🗑 Clear Cache</button>
+    <button class="ctrl-btn gray" onclick="fetchNow()" style="margin-left:auto">↻ Refresh</button>
+  </div>
+
+  <div class="live-wrap">
+    <!-- SMS Table -->
+    <div class="live-left">
+      <table class="ltbl">
+        <thead>
+          <tr>
+            <th>Range</th>
+            <th>Number</th>
+            <th>SID / Sender</th>
+            <th>Message</th>
+            <th>Waktu</th>
+          </tr>
+        </thead>
+        <tbody id="pub-tbody">
+          <tr><td colspan="5" class="iv-empty"><div class="spin" style="margin:0 auto 8px"></div><div>Memuat SMS publik...</div></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Top Ranges sidebar -->
+    <div class="live-right">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);margin-bottom:10px">Top Ranges</div>
+      <div id="top-ranges-pub"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+let allSms   = []
+let todayCount = 0
+let evtSrc   = null
+let topRanges = {}
+let sourceLabel = 'websocket'
+
+function timeStr(iso) {
+  if (!iso) return '—'
+  try {
+    const d = new Date(iso)
+    return d.toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit',second:'2-digit'})
+  } catch(e) { return iso.slice(11,19)||'—' }
+}
+
+function escH(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+
+function applyFilter() {
+  const sid = document.getElementById('filter-sid').value.toLowerCase()
+  const num = document.getElementById('filter-num').value.toLowerCase()
+  const rng = document.getElementById('filter-rng').value.toLowerCase()
+  const filtered = allSms.filter(s =>
+    (!sid || (s.sid||s.originator||'').toLowerCase().includes(sid) || (s.message||'').toLowerCase().includes(sid)) &&
+    (!num || (s.number||'').includes(num)) &&
+    (!rng || (s.range||'').toLowerCase().includes(rng))
+  )
+  renderTable(filtered)
+}
+
+function clearFilters() {
+  document.getElementById('filter-sid').value = ''
+  document.getElementById('filter-num').value = ''
+  document.getElementById('filter-rng').value = ''
+  renderTable(allSms)
+}
+
+function renderTable(rows) {
+  const tb = document.getElementById('pub-tbody')
+  if (!rows.length) {
+    tb.innerHTML = '<tr><td colspan="5" class="iv-empty">Belum ada SMS publik masuk</td></tr>'
+    return
+  }
+  tb.innerHTML = rows.slice(0,300).map(s => `
+    <tr>
+      <td><span style="font-size:11px;font-weight:600;color:var(--ink2)">${escH(s.range||'—')}</span></td>
+      <td class="num-cell">${escH(s.number||'—')}</td>
+      <td><span class="sid-pill" title="${escH(s.originator||s.sid||'')}">${escH((s.originator||s.sid||'—').slice(0,18))}</span></td>
+      <td style="max-width:260px;font-size:12px">${escH(s.message||'—')}</td>
+      <td style="font-size:11px;color:var(--ink3);white-space:nowrap;font-family:var(--mono)">${timeStr(s.received_at)}</td>
+    </tr>`).join('')
+}
+
+function updateTopRanges() {
+  const box = document.getElementById('top-ranges-pub')
+  const sorted = Object.entries(topRanges).sort((a,b)=>b[1]-a[1]).slice(0,12)
+  if (!sorted.length) { box.innerHTML = '<div style="font-size:12px;color:var(--ink3)">—</div>'; return }
+  box.innerHTML = sorted.map(([name,cnt]) =>
+    `<div class="rng-item"><div class="rng-item-name">${escH(name)}</div><div class="rng-item-cnt">${cnt} SMS</div></div>`
+  ).join('')
+}
+
+function setWsStatus(ok, label) {
+  const dot   = document.getElementById('ws-dot-pub')
+  const state = document.getElementById('ws-state-pub')
+  const badge = document.getElementById('ws-badge-pub')
+  dot.className   = ok ? 'dot-live' : 'dot-dead'
+  state.textContent = label
+  badge.className   = 'ws-badge ' + (ok ? 'ok' : 'err')
+  badge.textContent = ok ? '● LIVE' : label
+}
+
+function addSms(s, animate=false) {
+  // Cegah duplikat
+  const key = (s.number||'') + '|' + (s.message||'').slice(0,30) + '|' + (s.received_at||'').slice(0,19)
+  if (allSms.find(x => (x.number||'')+'|'+(x.message||'').slice(0,30)+'|'+(x.received_at||'').slice(0,19) === key)) return
+  allSms.unshift(s)
+  if (allSms.length > 500) allSms.pop()
+  // Top ranges
+  const rng = s.range || 'Unknown'
+  topRanges[rng] = (topRanges[rng]||0) + 1
+  // Today count
+  const today = new Date().toDateString()
+  if (s.received_at && new Date(s.received_at).toDateString() === today) todayCount++
+  document.getElementById('pub-total').textContent = allSms.length
+  document.getElementById('pub-today').textContent = todayCount
+  updateTopRanges()
+  applyFilter()
+  if (animate) {
+    const tb = document.getElementById('pub-tbody')
+    const fr = tb.querySelector('tr')
+    if (fr) { fr.classList.remove('row-new'); void fr.offsetWidth; fr.classList.add('row-new') }
+  }
+}
+
+// SSE Stream
+function startStream() {
+  if (evtSrc) { try { evtSrc.close() } catch(e){} }
+  evtSrc = new EventSource('/api/sms/test/stream')
+  evtSrc.onopen = () => {
+    setWsStatus(true, 'Live')
+    sourceLabel = 'stream'
+    document.getElementById('pub-source-label').style.display = ''
+    document.getElementById('pub-source').textContent = 'WebSocket Stream'
+  }
+  evtSrc.onmessage = (e) => {
+    try {
+      const d = JSON.parse(e.data)
+      if (d.type === 'connected') return
+      addSms(d, true)
+    } catch(err) {}
+  }
+  evtSrc.onerror = () => {
+    setWsStatus(false, 'Reconnecting...')
+    evtSrc.close()
+    setTimeout(startStream, 3000)
+  }
+}
+
+// Fetch initial data
+async function fetchNow() {
+  try {
+    const d = await apiFetch('/api/sms/test?limit=200')
+    if (!d || d.status !== 'ok') return
+    allSms = []; topRanges = {}; todayCount = 0
+    const today = new Date().toDateString()
+    ;(d.sms||[]).forEach(s => {
+      allSms.push(s)
+      const rng = s.range||'Unknown'
+      topRanges[rng] = (topRanges[rng]||0)+1
+      if (s.received_at && new Date(s.received_at).toDateString()===today) todayCount++
+    })
+    document.getElementById('pub-total').textContent = allSms.length
+    document.getElementById('pub-today').textContent = todayCount
+    document.getElementById('pub-source-label').style.display = ''
+    document.getElementById('pub-source').textContent = d.source || 'cache'
+    updateTopRanges()
+    applyFilter()
+    if (d.sms?.length > 0) setWsStatus(true, 'Live')
+  } catch(e) { console.warn('fetchNow error:', e) }
+}
+
+// Init
+fetchNow()
+startStream()
+
+// Auto refresh data tiap 30 detik (backup)
+setInterval(fetchNow, 30000)
+</script>
+{% endblock %}

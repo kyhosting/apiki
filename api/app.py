@@ -129,8 +129,8 @@ def init_db():
         c.execute("""INSERT INTO ky_users
             (username,nama,email,nomor_wa,password,role,api_key,verified)
             VALUES (?,?,?,?,?,?,?,?)""",
-            ("ADMINKIKI","KY-SHIRO AdminKIKI","admin@kyshiro.dev",
-             "628000000000", ph, "adminKIKI", akey, 1))
+            ("ADMINKIKI","KY-SHIRO Admin","admin@kyshiro.dev",
+             "628000000000", ph, "admin", akey, 1))
         logger.info(f"[DB] Admin dibuat — API Key: {akey}")
     c.commit(); c.close()
 
@@ -1577,6 +1577,10 @@ def pg_ivas_login():
 @login_required
 def pg_sms_live(): return render_template("dashboard/sms_live.html", user=_get_user())
 
+@app.route("/dashboard/sms-public")
+@login_required
+def pg_sms_public(): return render_template("dashboard/sms_public.html", user=_get_user())
+
 @app.route("/dashboard/sms-received")
 @login_required
 def pg_sms_received(): return render_template("dashboard/sms_received.html", user=_get_user())
@@ -1585,13 +1589,14 @@ def pg_sms_received(): return render_template("dashboard/sms_received.html", use
 @login_required
 def pg_numbers(): return render_template("dashboard/numbers.html", user=_get_user())
 
+# Redirect lama ke numbers
 @app.route("/dashboard/check-number")
 @login_required
-def pg_check_number(): return render_template("dashboard/check_number.html", user=_get_user())
+def pg_check_number(): return redirect(url_for("pg_numbers"))
 
 @app.route("/dashboard/ranges")
 @login_required
-def pg_ranges(): return render_template("dashboard/ranges.html", user=_get_user())
+def pg_ranges(): return redirect(url_for("pg_numbers"))
 
 @app.route("/dashboard/apikey")
 @login_required
@@ -1986,15 +1991,18 @@ def api_numbers_test_list():
         search=search, length=limit)
     clean = []
     for row in rows:
-        test_num = re.sub(r"<[^>]+>","",str(row.get("test_number",""))).strip()
+        def _s(k): return re.sub(r"<[^>]+>","",str(row.get(k,""))).strip()
+        test_num = _s("test_number") or _s("number") or _s("TestNumber")
         if not test_num: continue
         clean.append({
-            "number_id":  _get_number_id(row),
-            "range_name": re.sub(r"<[^>]+>","",str(row.get("range",""))).strip(),
-            "test_number":test_num,
-            "term":       str(row.get("term","")),
-            "rate_a2p":   str(row.get("A2P","")),
-            "limit_range":str(row.get("Limit_Range","")),
+            "number_id":       _get_number_id(row),
+            "range_name":      _s("range") or _s("Range") or _s("range_name"),
+            "test_number":     test_num,
+            "term":            _s("term") or _s("Term"),
+            "rate_a2p":        _s("A2P") or _s("rate") or _s("Rate"),
+            "limit_range":     _s("Limit_Range") or _s("Country_Limit") or _s("country_limit"),
+            "sid_range_limit": _s("SID_Range") or _s("sid_range") or _s("Limit_SID_Range") or "400",
+            "sid_did_limit":   _s("SID_DID") or _s("sid_did") or _s("Limit_SID_DID") or "40",
         })
     return jsonify({"status":"ok","total_ivas":total,"total":len(clean),"numbers":clean})
 
@@ -2009,15 +2017,19 @@ def api_numbers_my_list():
     rows, total = _fetch_my_numbers(uid, search=search, length=limit)
     clean = []
     for row in rows:
-        raw_num    = re.sub(r"<[^>]+>","",str(row.get("Number",row.get("number","")))).strip()
-        range_name = re.sub(r"<[^>]+>","",str(row.get("range",""))).strip()
+        def _s(k): return re.sub(r"<[^>]+>","",str(row.get(k,""))).strip()
+        raw_num    = _s("Number") or _s("number")
+        range_name = _s("range") or _s("Range")
         if not raw_num: continue
         clean.append({
-            "number_id":   _get_number_id(row),
-            "number":      raw_num,
-            "range_name":  range_name,
-            "rate_a2p":    str(row.get("A2P","")).strip(),
-            "limit_range": str(row.get("LimitA2P",row.get("Limit_Range",""))).strip(),
+            "number_id":       _get_number_id(row),
+            "number":          raw_num,
+            "range_name":      range_name,
+            "rates":           _s("A2P") or _s("rates") or _s("rate"),
+            "rate_a2p":        _s("A2P") or _s("rates") or _s("rate"),
+            "limit_range":     _s("LimitA2P") or _s("Limit_Range") or _s("limit_did_a2p"),
+            "sid_range_limit": _s("limit_cli_a2p") or _s("SID_Range") or "",
+            "sid_did_limit":   _s("limit_did_a2p") or _s("SID_DID") or "",
         })
     return jsonify({"status":"ok","total_ivas":total,"total":len(clean),"numbers":clean})
 

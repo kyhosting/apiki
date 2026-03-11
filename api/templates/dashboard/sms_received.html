@@ -2,52 +2,80 @@
 {% block page_title %}SMS Received{% endblock %}
 {% block content %}
 <style>
-/* iVAS-style card */
+/* ── Card ── */
 .iv-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:0}
 .iv-banner{background:#f59e0b;padding:10px 18px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#fff}
-/* stats row */
+
+/* ── Stats header (mirip iVAS) ── */
 .iv-stats{display:grid;grid-template-columns:repeat(4,1fr)}
 .iv-st{padding:14px 10px;text-align:center;border-bottom:1px solid var(--border)}
 .iv-st+.iv-st{border-left:1px solid var(--border)}
 .iv-st-num{font-size:28px;font-weight:800;font-family:var(--mono);line-height:1}
 .iv-st-num.org{color:#f59e0b}.iv-st-num.grn{color:#22c55e}.iv-st-num.red{color:#ef4444}.iv-st-num.blu{color:#3b82f6}
 .iv-st-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);margin-top:3px;font-weight:600}
-/* date row */
-.iv-dates{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--border);background:var(--bg2);flex-wrap:wrap}
+
+/* ── Date row ── */
+.iv-dates{display:flex;align-items:center;gap:10px;padding:12px 18px;border-bottom:1px solid var(--border);background:var(--bg2);flex-wrap:wrap}
 .iv-dates label{font-size:12px;font-weight:600;color:var(--ink2)}
 .iv-dinp{padding:6px 11px;border:1px solid var(--border2);border-radius:7px;background:var(--card);color:var(--ink);font-size:13px;font-family:var(--mono)}
+.iv-dinp:focus{border-color:#f59e0b;outline:none}
 .iv-btn{background:#f59e0b;color:#fff;border:none;border-radius:8px;padding:7px 20px;font-size:13px;font-weight:700;cursor:pointer;transition:.15s;display:flex;align-items:center;gap:6px}
 .iv-btn:hover{background:#d97706}.iv-btn:disabled{opacity:.5;cursor:not-allowed}
-/* main table */
-.iv-tbl{width:100%;border-collapse:collapse}
-.iv-tbl thead th{padding:8px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);background:var(--bg2);border-bottom:2px solid var(--border);white-space:nowrap}
-/* range rows */
+
+/* ── Main table ── */
+.iv-tbl{width:100%;border-collapse:collapse;min-width:500px}
+.iv-tbl thead th{padding:8px 16px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);background:var(--bg2);border-bottom:2px solid var(--border);white-space:nowrap}
+.iv-tbl thead th:first-child{text-align:left}
+.iv-tbl thead th:not(:first-child){text-align:right}
+
+/* ── Range rows ── */
 .iv-rng{cursor:pointer;transition:background .12s}
-.iv-rng:hover{background:rgba(245,158,11,.06)}
-.iv-rng td{padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600}
-.iv-arr{display:inline-block;font-size:10px;color:var(--ink3);margin-right:8px;transition:transform .2s;vertical-align:middle}
+.iv-rng:hover{background:rgba(245,158,11,.05)}
+.iv-rng td{padding:11px 16px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600}
+.iv-rng td:first-child{display:flex;align-items:center;gap:8px}
+.iv-arr{font-size:10px;color:var(--ink3);transition:transform .2s;flex-shrink:0}
 .iv-arr.open{transform:rotate(90deg)}
-/* number rows */
-.iv-num{cursor:pointer;transition:background .1s}
-.iv-num:hover td{background:rgba(245,158,11,.05)}
-.iv-num td{padding:8px 14px 8px 46px;border-bottom:1px solid var(--border2);font-size:12.5px;background:var(--bg2)}
-/* sms detail */
-.iv-smswrap td{padding:0;background:var(--bg)}
-.iv-smstbl{width:100%;border-collapse:collapse}
-.iv-smstbl th{padding:6px 12px 6px 82px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);border-bottom:1px solid var(--border2);background:var(--bg)}
-.iv-smstbl th.n{padding-left:12px}
-.iv-smstbl td{padding:8px 12px 8px 82px;font-size:12px;border-bottom:1px solid var(--border2);color:var(--ink)}
-.iv-smstbl td.n{padding-left:12px}
-.iv-smstbl tr:last-child td{border-bottom:none}
-.sid-pill{background:#f59e0b;color:#fff;font-size:10px;font-weight:700;padding:2px 9px;border-radius:6px;display:inline-block;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-/* badges */
-.bc{background:rgba(124,111,255,.13);color:var(--accent);font-size:11px;font-weight:700;padding:1px 8px;border-radius:9px;font-family:var(--mono)}
+
+/* ── Count/Paid/Unpaid/Revenue cells ── */
+.cnt-cell{text-align:right;padding:11px 16px;font-family:var(--mono);font-weight:700}
+.cnt-grn{color:#22c55e}.cnt-red{color:#ef4444}.cnt-org{color:#f59e0b}.cnt-rev{color:#22c55e}
+
+/* ── Sub-table (number detail) ── */
+.iv-sub-wrap td{padding:0;background:var(--bg)}
+.iv-sub-tbl{width:100%;border-collapse:collapse}
+.iv-sub-tbl thead th{padding:7px 12px 7px 36px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);border-bottom:1px solid var(--border2);background:var(--bg);white-space:nowrap}
+.iv-sub-tbl thead th.n{padding-left:12px}
+.iv-sub-tbl tbody td{padding:9px 12px 9px 36px;font-size:12.5px;border-bottom:1px solid var(--border2);color:var(--ink)}
+.iv-sub-tbl tbody td.n{padding-left:12px}
+.iv-sub-tbl tbody tr:last-child td{border-bottom:none}
+.iv-num-row{cursor:pointer;transition:background .1s}
+.iv-num-row:hover td{background:rgba(245,158,11,.04)}
+
+/* ── SMS detail ── */
+.iv-sms-wrap td{padding:0;background:var(--bg2)}
+.iv-sms-tbl{width:100%;border-collapse:collapse}
+.iv-sms-tbl th{padding:6px 12px 6px 72px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);border-bottom:1px solid var(--border2)}
+.iv-sms-tbl th.n{padding-left:12px}
+.iv-sms-tbl td{padding:8px 12px 8px 72px;font-size:12px;border-bottom:1px solid var(--border2);color:var(--ink)}
+.iv-sms-tbl td.n{padding-left:12px}
+.iv-sms-tbl tr:last-child td{border-bottom:none}
+
+/* ── Badges ── */
+.sid-pill{background:#f59e0b;color:#fff;font-size:10px;font-weight:700;padding:2px 9px;border-radius:6px;display:inline-block;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bc{background:rgba(245,158,11,.13);color:#f59e0b;font-size:11px;font-weight:700;padding:1px 8px;border-radius:9px;font-family:var(--mono)}
 .bp{background:rgba(34,197,94,.13);color:#22c55e;font-size:11px;font-weight:700;padding:1px 8px;border-radius:9px;font-family:var(--mono)}
 .bu{background:rgba(239,68,68,.13);color:#ef4444;font-size:11px;font-weight:700;padding:1px 8px;border-radius:9px;font-family:var(--mono)}
 .brev{font-family:var(--mono);font-size:12px;font-weight:700;color:#22c55e}
+
+/* ── Loading / empty ── */
 .iv-empty{text-align:center;padding:44px;color:var(--ink3);font-size:13px}
-.iv-load{text-align:center;padding:24px;color:var(--ink3);font-size:13px}
-@media(max-width:580px){.iv-stats{grid-template-columns:repeat(2,1fr)}}
+.iv-load{text-align:center;padding:20px;color:var(--ink3);font-size:13px}
+.tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+
+@media(max-width:580px){
+  .iv-stats{grid-template-columns:repeat(2,1fr)}
+  .iv-dates{gap:7px}
+}
 </style>
 
 <div class="page-hdr">
@@ -62,7 +90,7 @@
     <span id="tsLbl" style="margin-left:auto;font-size:11px;font-weight:400;opacity:.85"></span>
   </div>
 
-  <!-- stats -->
+  <!-- Stats (mirip iVAS: TOTAL SMS / PAID / UNPAID / REVENUE) -->
   <div class="iv-stats">
     <div class="iv-st"><div class="iv-st-num org" id="stTot">0</div><div class="iv-st-lbl">Total SMS</div></div>
     <div class="iv-st"><div class="iv-st-num grn" id="stPaid">0</div><div class="iv-st-lbl">Paid</div></div>
@@ -70,161 +98,248 @@
     <div class="iv-st"><div class="iv-st-num blu" id="stRev">$0.00</div><div class="iv-st-lbl">Revenue</div></div>
   </div>
 
-  <!-- dates -->
+  <!-- Date picker -->
   <div class="iv-dates">
-    <label>Start Date</label><input type="date" id="fd" class="iv-dinp"/>
-    <label>End Date</label><input type="date" id="td" class="iv-dinp"/>
-    <button class="iv-btn" id="btnGet" onclick="doGet()">⚡ Get SMS</button>
+    <label>Start Date</label>
+    <input type="date" id="fd" class="iv-dinp"/>
+    <label>End Date</label>
+    <input type="date" id="td" class="iv-dinp"/>
+    <button class="iv-btn" id="btnGet" onclick="doGet()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="13 2 13 9 22 9"/><path d="M21 14v6a1 1 0 01-1 1H4a1 1 0 01-1-1V4a1 1 0 011-1h9"/></svg>
+      Get SMS
+    </button>
   </div>
 
-  <!-- table -->
-  <div style="overflow-x:auto">
+  <!-- Table mirip iVAS: RANGE / COUNT / PAID / UNPAID / REVENUE -->
+  <div class="tbl-scroll">
     <table class="iv-tbl">
       <thead>
         <tr>
-          <th style="width:42%">Range</th>
-          <th style="text-align:center">Count</th>
-          <th style="text-align:center">Paid</th>
-          <th style="text-align:center">Unpaid</th>
-          <th style="text-align:right;padding-right:18px">Revenue</th>
+          <th style="text-align:left;width:44%">Range</th>
+          <th style="text-align:right">Count</th>
+          <th style="text-align:right">Paid</th>
+          <th style="text-align:right">Unpaid</th>
+          <th style="text-align:right;padding-right:20px">Revenue</th>
         </tr>
       </thead>
       <tbody id="tbody">
-        <tr><td colspan="5" class="iv-empty">Select a date range and click <b>Get SMS</b> to load your records.</td></tr>
+        <tr><td colspan="5" class="iv-empty">Pilih tanggal dan klik <b>Get SMS</b> untuk melihat data.</td></tr>
       </tbody>
     </table>
   </div>
 </div>
 
 <script>
-const _t = new Date().toISOString().slice(0,10);
-document.getElementById('fd').value = _t;
-document.getElementById('td').value = _t;
+// Init date ke hari ini
+const _today = new Date().toISOString().slice(0,10);
+document.getElementById('fd').value = _today;
+document.getElementById('td').value = _today;
 
-// state[rid] = {open, loaded, nums:{nk:{open,loaded}}}
+// State tree: rng → {open, loaded, stats, nums: {nk → {open,loaded}}}
 const ST = {};
 
-async function doGet() {
-  const fd=document.getElementById('fd').value, td=document.getElementById('td').value;
-  const btn=document.getElementById('btnGet'), body=document.getElementById('tbody');
-  btn.disabled=true; btn.textContent='⏳ Memuat...';
-  body.innerHTML='<tr><td colspan="5" class="iv-load"><span class="spin"></span> Memuat...</td></tr>';
-  ['stTot','stPaid','stUnpaid'].forEach(id=>document.getElementById(id).textContent='0');
-  document.getElementById('stRev').textContent='$0.00';
-  try {
-    const d = await apiFetch(`/api/ranges?from=${fd}&to=${td}`);
-    const rngs = d.ranges||[];
-    if (!rngs.length) {
-      body.innerHTML='<tr><td colspan="5" class="iv-empty">Tidak ada data untuk tanggal ini.</td></tr>';
-    } else {
-      body.innerHTML = rngs.map(r=>rngHtml(r)).join('');
-      document.getElementById('tsLbl').textContent = new Date().toLocaleTimeString();
-    }
-  } catch(e) {
-    body.innerHTML=`<tr><td colspan="5" class="iv-empty" style="color:#ef4444">Error: ${escHtml(e.message)}</td></tr>`;
-  }
-  btn.disabled=false; btn.innerHTML='⚡ Get SMS';
+// Rate per SMS
+const RATE_PER_SMS = 0.0120;
+
+// ── Globals untuk total stats ──
+let _gTot=0, _gPaid=0, _gUnpaid=0, _gRev=0;
+
+function updateStats(){
+  document.getElementById('stTot').textContent   = _gTot;
+  document.getElementById('stPaid').textContent  = _gPaid;
+  document.getElementById('stUnpaid').textContent= _gUnpaid;
+  document.getElementById('stRev').textContent   = '$'+_gRev.toFixed(2);
 }
 
-function rid(name){ return 'r_'+name.replace(/[^a-z0-9]/gi,'_'); }
+// ── Get SMS (main) ──
+async function doGet(){
+  const fd=document.getElementById('fd').value, td=document.getElementById('td').value;
+  const btn=document.getElementById('btnGet'), body=document.getElementById('tbody');
+  btn.disabled=true; btn.innerHTML='<span class="spin"></span> Memuat...';
+  body.innerHTML='<tr><td colspan="5" class="iv-load"><span class="spin"></span> Memuat ranges...</td></tr>';
 
-function rngHtml(rng) {
+  // Reset stats
+  _gTot=0; _gPaid=0; _gUnpaid=0; _gRev=0; updateStats();
+
+  try{
+    const d=await apiFetch(`/api/ranges?from=${fd}&to=${td}`);
+    const rngs=d.ranges||[];
+    if(!rngs.length){
+      body.innerHTML='<tr><td colspan="5" class="iv-empty">Tidak ada data untuk tanggal ini.</td></tr>';
+    } else {
+      body.innerHTML=rngs.map(r=>rngHtml(r)).join('');
+      document.getElementById('tsLbl').textContent=new Date().toLocaleTimeString();
+      // Auto-load stats untuk semua range (parallel)
+      rngs.forEach(r=>loadRangeStats(r.name));
+    }
+  }catch(e){
+    body.innerHTML=`<tr><td colspan="5" class="iv-empty" style="color:#ef4444">Error: ${escHtml(e.message)}</td></tr>`;
+  }
+  btn.disabled=false;
+  btn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="13 2 13 9 22 9"/><path d="M21 14v6a1 1 0 01-1 1H4a1 1 0 01-1-1V4a1 1 0 011-1h9"/></svg> Get SMS';
+}
+
+function rid(name){ return 'r_'+btoa(name).replace(/[^a-zA-Z0-9]/g,'').slice(0,20); }
+
+function rngHtml(rng){
   const id=rid(rng.name);
-  if (!ST[id]) ST[id]={open:false,loaded:false,nums:{}};
+  if(!ST[id]) ST[id]={open:false,loaded:false,nums:{}};
   return `
 <tr class="iv-rng" onclick="toggleRng('${escHtml(rng.name)}','${id}')">
   <td><span class="iv-arr" id="a-${id}">▶</span>${escHtml(rng.name)}</td>
-  <td style="text-align:center"><span class="bc" id="rc-${id}">-</span></td>
-  <td style="text-align:center"><span class="bp" id="rp-${id}">-</span></td>
-  <td style="text-align:center"><span class="bu" id="ru-${id}">0</span></td>
-  <td style="text-align:right;padding-right:18px"><span class="brev" id="rr-${id}">-</span></td>
+  <td class="cnt-cell cnt-org"><span id="rc-${id}">…</span></td>
+  <td class="cnt-cell cnt-grn"><span id="rp-${id}">…</span></td>
+  <td class="cnt-cell cnt-red"><span id="ru-${id}">…</span></td>
+  <td class="cnt-cell cnt-rev" style="padding-right:20px"><span id="rr-${id}">…</span></td>
 </tr>
 <tr id="rs-${id}" style="display:none"><td colspan="5" style="padding:0"><div id="rc2-${id}"></div></td></tr>`;
 }
 
-async function toggleRng(name, id) {
-  const s=ST[id]; if(!s) return;
-  const arr=document.getElementById(`a-${id}`);
-  const sub=document.getElementById(`rs-${id}`);
-  if (s.open) { s.open=false; arr.classList.remove('open'); sub.style.display='none'; return; }
-  s.open=true; arr.classList.add('open'); sub.style.display='';
-  if (s.loaded) return;
-  const cnt=document.getElementById(`rc2-${id}`);
-  cnt.innerHTML='<div class="iv-load"><span class="spin"></span> Memuat nomor...</div>';
+// Load stats per range: fetch numbers → count total/paid/unpaid/rev langsung dari /api/numbers endpoint
+async function loadRangeStats(rngName){
+  const id=rid(rngName);
   const fd=document.getElementById('fd').value, td=document.getElementById('td').value;
-  try {
-    const d = await apiFetch(`/api/numbers?range=${encodeURIComponent(name)}&from=${fd}&to=${td}`);
-    const nums=d.numbers||[];
+  try{
+    const nd=await apiFetch(`/api/numbers?range=${encodeURIComponent(rngName)}&from=${fd}&to=${td}`);
+    const nums=nd.numbers||[];
+    // Fetch SMS untuk setiap nomor secara parallel (max 5)
+    let tot=0,paid=0,unpaid=0,rev=0;
+    const chunks=[];
+    for(let i=0;i<nums.length;i+=5) chunks.push(nums.slice(i,i+5));
+    for(const chunk of chunks){
+      await Promise.all(chunk.map(async n=>{
+        try{
+          const sd=await apiFetch(`/api/sms/received?range=${encodeURIComponent(rngName)}&number=${encodeURIComponent(n.number)}&from=${fd}&to=${td}`);
+          const msgs=sd.messages||[];
+          const p=msgs.filter(m=>typeof m==='object'?(m.paid==='Paid'):false).length;
+          const u=msgs.length-p;
+          const r=p*RATE_PER_SMS;
+          tot+=msgs.length; paid+=p; unpaid+=u; rev+=r;
+        }catch{}
+      }));
+    }
+    // Update per-range cells
+    const setEl=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
+    setEl('rc-'+id, tot);
+    setEl('rp-'+id, paid);
+    setEl('ru-'+id, unpaid);
+    setEl('rr-'+id, tot>0?('$'+(rev).toFixed(2)+' USD'):'$0.00');
+    // Update global totals
+    _gTot+=tot; _gPaid+=paid; _gUnpaid+=unpaid; _gRev+=rev;
+    updateStats();
+    // Store for when user opens the range
+    if(ST[id]) ST[id].numCache=nums;
+  }catch{}
+}
+
+// ── Toggle Range ──
+async function toggleRng(name,id){
+  const s=ST[id]; if(!s) return;
+  const arr=document.getElementById('a-'+id);
+  const sub=document.getElementById('rs-'+id);
+  if(s.open){ s.open=false; arr.classList.remove('open'); sub.style.display='none'; return; }
+  s.open=true; arr.classList.add('open'); sub.style.display='';
+  if(s.loaded) return;
+  const cnt=document.getElementById('rc2-'+id);
+  const fd=document.getElementById('fd').value, td=document.getElementById('td').value;
+  cnt.innerHTML='<div class="iv-load"><span class="spin"></span> Memuat nomor...</div>';
+  try{
+    const nd=await apiFetch(`/api/numbers?range=${encodeURIComponent(name)}&from=${fd}&to=${td}`);
+    const nums=nd.numbers||[];
     s.loaded=true;
-    document.getElementById(`rc-${id}`).textContent = nums.length;
-    if (!nums.length) { cnt.innerHTML='<div class="iv-load">Tidak ada nomor.</div>'; return; }
-    cnt.innerHTML=`<table class="iv-tbl">${nums.map(n=>numHtml(name,id,n.number)).join('')}</table>`;
-  } catch(e) {
+    if(!nums.length){ cnt.innerHTML='<div class="iv-load">Tidak ada nomor.</div>'; return; }
+    cnt.innerHTML=`<table class="iv-sub-tbl">
+<thead><tr>
+  <th>Number</th>
+  <th class="n" style="text-align:right">Count</th>
+  <th class="n" style="text-align:right">Paid</th>
+  <th class="n" style="text-align:right">Unpaid</th>
+  <th class="n" style="text-align:right">Revenue</th>
+</tr></thead>
+<tbody>${nums.map(n=>numHtml(name,id,n.number)).join('')}</tbody>
+</table>`;
+  }catch(e){
     cnt.innerHTML=`<div class="iv-load" style="color:#ef4444">Error: ${escHtml(e.message)}</div>`;
   }
 }
 
-function nk(rid, num){ return rid+'_'+num.replace(/\D/g,''); }
+function nk(rid,num){ return rid+'_'+num.replace(/\D/g,''); }
 
-function numHtml(rng, rid, num) {
+function numHtml(rng,rid,num){
   const k=nk(rid,num);
-  if (!ST[rid].nums[k]) ST[rid].nums[k]={open:false,loaded:false};
+  if(!ST[rid].nums[k]) ST[rid].nums[k]={open:false,loaded:false};
   return `
-<tr class="iv-num" onclick="toggleNum('${escHtml(rng)}','${rid}','${escHtml(num)}','${k}')">
-  <td colspan="5">
+<tr class="iv-num-row" onclick="toggleNum('${escHtml(rng)}','${rid}','${escHtml(num)}','${k}')">
+  <td>
     <span class="iv-arr" id="a-${k}" style="font-size:9px">▶</span>
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:5px;color:var(--ink3)"><path d="M22 16.92v3a2 2 0 01-2.18 2A19.86 19.86 0 013.08 4.18 2 2 0 015.07 2h3a2 2 0 012 1.72c.13 1 .37 1.98.72 2.92a2 2 0 01-.45 2.11L9.09 9.91a16 16 0 006.99 7l1.16-1.16a2 2 0 012.11-.45c.94.35 1.91.59 2.91.72A2 2 0 0122 17z"/></svg>
-    <span style="font-family:var(--mono);font-weight:600;font-size:13px;color:var(--ink)">${escHtml(num)}</span>
-    <span id="nb-${k}" style="margin-left:10px"></span>
+    <span style="font-family:var(--mono);font-weight:600">${escHtml(num)}</span>
+    <span id="nb-${k}" style="margin-left:8px"></span>
   </td>
+  <td class="n" style="text-align:right" id="nc-${k}">—</td>
+  <td class="n" style="text-align:right" id="np-${k}">—</td>
+  <td class="n" style="text-align:right" id="nu-${k}">—</td>
+  <td class="n" style="text-align:right" id="nr-${k}">—</td>
 </tr>
-<tr id="ns-${k}" style="display:none"><td colspan="5" style="padding:0"><div id="nc-${k}"></div></td></tr>`;
+<tr id="ns-${k}" style="display:none"><td colspan="5" style="padding:0"><div id="nsc-${k}"></div></td></tr>`;
 }
 
-async function toggleNum(rng, rid, num, k) {
+// ── Toggle Number ──
+async function toggleNum(rng,rid,num,k){
   const s=ST[rid]?.nums[k]; if(!s) return;
-  const arr=document.getElementById(`a-${k}`);
-  const sub=document.getElementById(`ns-${k}`);
-  if (s.open) { s.open=false; arr.classList.remove('open'); sub.style.display='none'; return; }
+  const arr=document.getElementById('a-'+k);
+  const sub=document.getElementById('ns-'+k);
+  if(s.open){ s.open=false; arr.classList.remove('open'); sub.style.display='none'; return; }
   s.open=true; arr.classList.add('open'); sub.style.display='';
-  if (s.loaded) return;
-  const cnt=document.getElementById(`nc-${k}`);
-  cnt.innerHTML='<div class="iv-load"><span class="spin"></span> Memuat SMS...</div>';
+  if(s.loaded) return;
+  const cnt=document.getElementById('nsc-'+k);
   const fd=document.getElementById('fd').value, td=document.getElementById('td').value;
-  try {
-    const d = await apiFetch(`/api/sms/received?range=${encodeURIComponent(rng)}&number=${encodeURIComponent(num)}&from=${fd}&to=${td}`);
+  cnt.innerHTML='<div class="iv-load"><span class="spin"></span> Memuat SMS...</div>';
+  try{
+    const d=await apiFetch(`/api/sms/received?range=${encodeURIComponent(rng)}&number=${encodeURIComponent(num)}&from=${fd}&to=${td}`);
     const msgs=d.messages||[];
     s.loaded=true;
-    // badge on number row
-    const nb=document.getElementById(`nb-${k}`);
-    if (nb) nb.innerHTML=`<span class="bc">${msgs.length}</span>`;
-    // update total
-    const el=document.getElementById('stTot');
-    el.textContent=parseInt(el.textContent||0)+msgs.length;
-    if (!msgs.length) { cnt.innerHTML='<div class="iv-load">Tidak ada SMS.</div>'; return; }
+
+    // Hitung paid/unpaid per nomor
+    const paidCount  = msgs.filter(m=>typeof m==='object'?(m.paid==='Paid'):false).length;
+    const unpaidCount= msgs.length - paidCount;
+    const rev        = paidCount * RATE_PER_SMS;
+
+    // Update stat cells di number row
+    const se=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
+    se('nc-'+k, msgs.length);
+    se('np-'+k, paidCount);
+    se('nu-'+k, unpaidCount);
+    se('nr-'+k, msgs.length>0?('$'+rev.toFixed(4)):'-');
+    se('nb-'+k, `<span class="bc">${msgs.length}</span>`);
+
+    if(!msgs.length){ cnt.innerHTML='<div class="iv-load">Tidak ada SMS.</div>'; return; }
+
     cnt.innerHTML=`
-<table class="iv-smstbl">
+<table class="iv-sms-tbl">
   <thead><tr>
-    <th>Sender</th><th class="n" style="width:55%">Message</th>
-    <th class="n">Time</th><th class="n">Revenue</th>
+    <th>Sender</th>
+    <th class="n" style="width:50%">Message</th>
+    <th class="n">Time</th>
+    <th class="n">Status</th>
   </tr></thead>
   <tbody>
     ${msgs.map(m=>{
-      const txt = typeof m==='string'?m:(m.message||m.otp_message||'');
+      const txt = typeof m==='string'?m:(m.message||m.otp_message||String(m));
       const sid = typeof m==='object'?(m.sid||m.originator||''):'';
       const rcv = typeof m==='object'?(m.received_at||''):'';
-      const rev = typeof m==='object'?(m.paid==='Paid'?'$0.0120':''):'';
+      const paid= typeof m==='object'?m.paid:'';
       const ts  = rcv?rcv.replace('T',' ').slice(0,19):'';
       return `<tr>
         <td>${sid?`<span class="sid-pill">${escHtml(sid)}</span>`:''}</td>
         <td class="n" style="word-break:break-word;line-height:1.5">${escHtml(txt)}</td>
         <td class="n" style="font-family:var(--mono);font-size:11px;color:var(--ink3);white-space:nowrap">${escHtml(ts)}</td>
-        <td class="n" style="font-family:var(--mono);font-size:11px;color:#22c55e;font-weight:700">${escHtml(rev)}</td>
+        <td class="n">${paid==='Paid'?'<span class="bp">Paid</span>':paid==='Unpaid'?'<span class="bu">Unpaid</span>':''}</td>
       </tr>`;
     }).join('')}
   </tbody>
 </table>`;
-  } catch(e) {
+  }catch(e){
     cnt.innerHTML=`<div class="iv-load" style="color:#ef4444">Error: ${escHtml(e.message)}</div>`;
   }
 }

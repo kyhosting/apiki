@@ -1,334 +1,382 @@
 {% extends "dashboard/base.html" %}
-{% block page_title %}My Numbers{% endblock %}
+{% block page_title %}Numbers{% endblock %}
 {% block content %}
 <style>
 .iv-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:18px}
 .iv-banner{background:#f59e0b;padding:10px 18px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#fff}
-/* tabs */
 .tabs{display:flex;border-bottom:2px solid var(--border);background:var(--bg2)}
 .tab{padding:11px 22px;font-size:13px;font-weight:600;color:var(--ink3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:.12s}
-.tab:hover{color:var(--ink)}
-.tab.active{color:#f59e0b;border-bottom-color:#f59e0b}
-/* toolbar */
-.tbar{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border);background:var(--bg2);flex-wrap:wrap}
-.srch-inp{padding:7px 12px;border:1px solid var(--border2);border-radius:8px;background:var(--card);color:var(--ink);font-size:13px;width:220px}
+.tab:hover{color:var(--ink)}.tab.active{color:#f59e0b;border-bottom-color:#f59e0b}
+.tbar{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--border);background:var(--bg2);flex-wrap:wrap}
+.srch-inp{padding:7px 12px;border:1px solid var(--border2);border-radius:8px;background:var(--card);color:var(--ink);font-size:13px;flex:1;min-width:140px;max-width:260px}
+.srch-inp:focus{border-color:#f59e0b;outline:none}
 .show-sel{padding:6px 10px;border:1px solid var(--border2);border-radius:7px;background:var(--card);color:var(--ink);font-size:12px}
-.tbar-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.tbar-right{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .btn-sm{padding:6px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:.15s}
-.btn-reload{background:var(--accent);color:#fff}.btn-reload:hover{opacity:.85}
-.btn-export{background:var(--card2);color:var(--ink2);border:1px solid var(--border2)}.btn-export:hover{background:var(--border)}
-/* main table */
-.ntbl{width:100%;border-collapse:collapse}
-.ntbl thead th{padding:8px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);background:var(--bg2);border-bottom:2px solid var(--border);white-space:nowrap}
-.ntbl thead th.center{text-align:center}
-.ntbl tbody td{padding:9px 14px;border-bottom:1px solid var(--border);font-size:13px;color:var(--ink)}
+.btn-primary{background:#f59e0b;color:#fff}.btn-primary:hover{opacity:.85}
+.btn-outline{background:var(--card2);color:var(--ink2);border:1px solid var(--border2)}.btn-outline:hover{background:var(--border)}
+.ntbl{width:100%;border-collapse:collapse;min-width:560px}
+.ntbl thead th{padding:8px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);background:var(--bg2);border-bottom:2px solid var(--border);white-space:nowrap;text-align:left}
+.ntbl tbody td{padding:9px 12px;border-bottom:1px solid var(--border);font-size:13px;color:var(--ink);vertical-align:middle}
 .ntbl tbody tr:hover td{background:rgba(245,158,11,.04)}
-.ntbl tbody tr:last-child td{border-bottom:none}
 .num-cell{font-family:var(--mono);font-weight:600}
-.rng-cell{font-size:12px;color:var(--ink2)}
-.rate-cell{font-family:var(--mono);font-size:12px;color:var(--ink2);text-align:center}
-.lim-cell{font-family:var(--mono);font-size:12px;text-align:center;color:var(--ink2)}
-/* action buttons */
+.rng-cell{font-size:12px;color:var(--ink2);font-weight:500}
+.rate-cell,.lim-cell{font-family:var(--mono);font-size:12px;color:var(--ink2)}
 .btn-del{background:rgba(239,68,68,.13);color:#ef4444;border:1px solid rgba(239,68,68,.25);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;transition:.12s}
 .btn-del:hover{background:#ef4444;color:#fff}
 .btn-add{background:rgba(34,197,94,.13);color:#22c55e;border:1px solid rgba(34,197,94,.25);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;transition:.12s}
 .btn-add:hover{background:#22c55e;color:#fff}
-.btn-add:disabled{opacity:.4;cursor:not-allowed}
-/* pagination */
+.btn-info{background:rgba(59,130,246,.13);color:#3b82f6;border:1px solid rgba(59,130,246,.25);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;transition:.12s}
+.btn-info:hover{background:#3b82f6;color:#fff}
+.btn-add:disabled,.btn-del:disabled{opacity:.4;cursor:not-allowed}
 .pager{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-top:1px solid var(--border);background:var(--bg2);font-size:12px;color:var(--ink3);flex-wrap:wrap;gap:8px}
-.pg-btns{display:flex;gap:4px}
-.pg-btn{padding:4px 10px;border-radius:6px;border:1px solid var(--border2);background:var(--card);color:var(--ink2);font-size:12px;cursor:pointer;transition:.1s}
+.pg-btns{display:flex;gap:4px;flex-wrap:wrap}
+.pg-btn{padding:4px 10px;border-radius:6px;border:1px solid var(--border2);background:var(--card);color:var(--ink2);font-size:12px;cursor:pointer}
 .pg-btn:hover{background:var(--border)}.pg-btn.active{background:#f59e0b;color:#fff;border-color:#f59e0b}
+.stat-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;background:var(--bg2);border:1px solid var(--border)}
+.err-box{padding:12px 16px;border-radius:10px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);color:#ef4444;font-size:13px;margin:12px 14px}
 .iv-empty{text-align:center;padding:44px;color:var(--ink3);font-size:13px}
-.cb{cursor:pointer;accent-color:#f59e0b}
-/* toast */
-.toast{position:fixed;bottom:24px;right:24px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 18px;font-size:13px;font-weight:500;color:var(--ink);box-shadow:0 4px 20px rgba(0,0,0,.2);z-index:999;transform:translateY(20px);opacity:0;transition:.3s;pointer-events:none}
-.toast.show{transform:none;opacity:1}
-.toast.ok{border-left:3px solid #22c55e}
-.toast.err{border-left:3px solid #ef4444}
+.tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.cb{width:15px;height:15px;cursor:pointer;accent-color:#f59e0b}
+
+/* ── Range Details Modal ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:1000;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal-box{background:var(--card);border:1px solid var(--border2);border-radius:16px;width:100%;max-width:430px;margin:16px;box-shadow:0 24px 64px rgba(0,0,0,.7);overflow:hidden}
+.modal-head{background:#f59e0b;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;color:#fff;font-size:14px;font-weight:700}
+.modal-close{background:rgba(255,255,255,.2);border:none;color:#fff;font-size:18px;width:28px;height:28px;border-radius:7px;cursor:pointer;line-height:1}
+.modal-close:hover{background:rgba(255,255,255,.35)}
+.modal-body{padding:20px}
+.detail-rng-name{font-size:17px;font-weight:800;color:var(--ink);margin-bottom:4px}
+.badge-a2p{background:#22c55e;color:#fff;font-size:11px;font-weight:700;padding:2px 10px;border-radius:20px;display:inline-block;margin-bottom:14px}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.detail-item{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px}
+.detail-item label{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);font-weight:700;display:block;margin-bottom:4px}
+.detail-val{font-size:16px;font-weight:800;font-family:var(--mono);color:var(--ink)}
+.detail-val.green{color:#22c55e}.detail-val.blue{color:#3b82f6}
+.detail-info{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:14px;font-size:12px;color:var(--ink2);line-height:1.7}
+.btn-add-modal{background:#3b82f6;color:#fff;border:none;border-radius:9px;padding:10px 0;font-size:13px;font-weight:700;cursor:pointer;width:100%;transition:.15s}
+.btn-add-modal:hover{background:#2563eb}.btn-add-modal:disabled{opacity:.5;cursor:not-allowed}
+
+@media(max-width:600px){
+  .tbar{gap:6px}
+  .srch-inp{max-width:100%}
+  .tbar-right{margin-left:0;width:100%;justify-content:flex-end}
+  .detail-grid{grid-template-columns:1fr}
+}
 </style>
 
 <div class="page-hdr">
-  <div class="page-title">📞 Numbers</div>
-  <div class="page-sub">Kelola nomor kamu dan tambah dari Test Numbers</div>
+  <div class="page-title">☎ Numbers</div>
+  <div class="page-sub">My Numbers (nomor aktif) dan Test Numbers (tambah dari iVAS)</div>
 </div>
 
-<!-- Tabs -->
 <div class="iv-card">
   <div class="tabs">
-    <div class="tab active" id="tab-my"   onclick="switchTab('my')">My Numbers</div>
-    <div class="tab"        id="tab-test" onclick="switchTab('test')">Add Number (Test Numbers)</div>
+    <div class="tab active" id="tab-my"   onclick="switchTab('my')">📋 My Numbers</div>
+    <div class="tab"        id="tab-test" onclick="switchTab('test')">➕ Test Numbers (Add)</div>
   </div>
 
   <!-- MY NUMBERS -->
-  <div id="pane-my">
-    <div class="iv-banner">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 01-2.18 2A19.86 19.86 0 013.08 4.18 2 2 0 015.07 2h3a2 2 0 012 1.72c.13 1 .37 1.98.72 2.92a2 2 0 01-.45 2.11L9.09 9.91a16 16 0 006.99 7l1.16-1.16a2 2 0 012.11-.45c.94.35 1.91.59 2.91.72A2 2 0 0122 17z"/></svg>
-      My Numbers
-      <span id="myCount" style="margin-left:auto;font-size:11px;font-weight:400;opacity:.85">-</span>
-    </div>
+  <div id="panel-my">
     <div class="tbar">
-      <input type="text" id="mySearch" class="srch-inp" placeholder="Search numbers..." oninput="filterMy()"/>
-      <select id="myShow" class="show-sel" onchange="renderMy()">
-        <option value="20">Show 20</option>
-        <option value="50">Show 50</option>
-        <option value="100">Show 100</option>
+      <input class="srch-inp" id="my-search" placeholder="🔍 Cari nomor / range..." oninput="debounceMy()" />
+      <select class="show-sel" id="my-limit" onchange="loadMy()">
+        <option value="50">50</option><option value="100">100</option>
+        <option value="200" selected>200</option><option value="500">500</option>
       </select>
       <div class="tbar-right">
-        <button class="btn-sm btn-export" onclick="exportMyCSV()">↓ Export Excel</button>
-        <button class="btn-sm btn-reload" onclick="loadMy()">↻ Reload</button>
+        <span class="stat-chip">Total iVAS: <b id="my-total-ivas">—</b></span>
+        <span class="stat-chip">Loaded: <b id="my-total">—</b></span>
+        <button class="btn-sm btn-outline" onclick="loadMy()">↻ Refresh</button>
+        <button class="btn-sm btn-del" id="bulk-del-btn" onclick="bulkReturn()" style="display:none">🗑 Return Selected</button>
       </div>
     </div>
-    <div style="overflow-x:auto">
+    <div id="my-err" class="err-box" style="display:none"></div>
+    <div class="tbl-scroll">
       <table class="ntbl">
-        <thead>
-          <tr>
-            <th style="width:36px"><input type="checkbox" class="cb" id="myChkAll" onchange="toggleAllMy(this)"/></th>
-            <th>Number</th>
-            <th>Range Name</th>
-            <th class="center">Rates</th>
-            <th class="center">Limit by Range</th>
-            <th class="center">SID/Range Limit</th>
-            <th class="center">SID→DID Limit</th>
-            <th class="center">Action</th>
-          </tr>
-        </thead>
-        <tbody id="myBody">
-          <tr><td colspan="8" class="iv-empty"><span class="spin"></span> Memuat...</td></tr>
+        <thead><tr>
+          <th style="width:32px"><input type="checkbox" class="cb" id="cb-all" onchange="toggleAll(this)"/></th>
+          <th>Number</th><th>Range Name</th><th>Rate</th>
+          <th>Country Limit</th><th>SID→Range</th><th>SID→DID</th><th>Action</th>
+        </tr></thead>
+        <tbody id="my-tbody">
+          <tr><td colspan="8" class="iv-empty"><div class="spin" style="margin:0 auto 8px"></div>Memuat My Numbers...</td></tr>
         </tbody>
       </table>
     </div>
-    <div class="pager">
-      <span id="myInfo">-</span>
-      <div class="pg-btns" id="myPager"></div>
+    <div class="pager" id="my-pager" style="display:none">
+      <span id="my-info"></span><div class="pg-btns" id="my-pg-btns"></div>
     </div>
   </div>
 
-  <!-- TEST / ADD NUMBERS -->
-  <div id="pane-test" style="display:none">
-    <div class="iv-banner" style="background:#3b82f6">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
-      Test Numbers
-      <span id="testCount" style="margin-left:auto;font-size:11px;font-weight:400;opacity:.85">-</span>
-    </div>
+  <!-- TEST NUMBERS -->
+  <div id="panel-test" style="display:none">
     <div class="tbar">
-      <input type="text" id="testSearch" class="srch-inp" placeholder="Search range / number..." oninput="filterTest()"/>
-      <select id="testShow" class="show-sel" onchange="renderTest()">
-        <option value="50">Show 50</option>
-        <option value="100">Show 100</option>
-        <option value="200">Show 200</option>
+      <input class="srch-inp" id="test-search" placeholder="🔍 Cari range / nomor..." oninput="debounceTest()" />
+      <select class="show-sel" id="test-limit" onchange="loadTest()">
+        <option value="50" selected>50</option><option value="100">100</option><option value="200">200</option>
       </select>
       <div class="tbar-right">
-        <button class="btn-sm btn-reload" onclick="loadTest()">↻ Reload</button>
+        <span class="stat-chip">Total iVAS: <b id="test-total-ivas">—</b></span>
+        <span class="stat-chip">Loaded: <b id="test-total">—</b></span>
+        <button class="btn-sm btn-outline" onclick="loadTest()">↻ Refresh</button>
       </div>
     </div>
-    <div style="overflow-x:auto">
+    <div id="test-err" class="err-box" style="display:none"></div>
+    <div class="tbl-scroll">
       <table class="ntbl">
-        <thead>
-          <tr>
-            <th>Range Name</th>
-            <th>Test Number</th>
-            <th class="center">Term</th>
-            <th class="center">Rate</th>
-            <th class="center">Country Limit</th>
-            <th class="center">SID→Range Limit</th>
-            <th class="center">SID→DID Limit</th>
-            <th class="center">Action</th>
-          </tr>
-        </thead>
-        <tbody id="testBody">
-          <tr><td colspan="8" class="iv-empty"><span class="spin"></span> Memuat...</td></tr>
+        <thead><tr>
+          <th>Range Name</th><th>Test Number</th><th>Term</th><th>Rate</th>
+          <th>Country Limit</th><th>SID→Range</th><th>SID→DID</th><th>Action</th>
+        </tr></thead>
+        <tbody id="test-tbody">
+          <tr><td colspan="8" class="iv-empty">Klik tab ini untuk memuat Test Numbers dari iVAS.</td></tr>
         </tbody>
       </table>
     </div>
-    <div class="pager">
-      <span id="testInfo">-</span>
-      <div class="pg-btns" id="testPager"></div>
+    <div class="pager" id="test-pager" style="display:none">
+      <span id="test-info"></span><div class="pg-btns" id="test-pg-btns"></div>
     </div>
   </div>
 </div>
 
-<!-- Toast -->
-<div class="toast" id="toast"></div>
+<!-- RANGE DETAILS MODAL -->
+<div class="modal-overlay" id="rangeModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <span>📋 Range Details</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="detail-rng-name" id="modal-rng-name">-</div>
+      <div class="badge-a2p">A2P</div>
+      <div class="detail-grid">
+        <div class="detail-item">
+          <label>Range Limit</label>
+          <div class="detail-val green" id="modal-range-limit">-</div>
+        </div>
+        <div class="detail-item">
+          <label>A2P SID/Range Limit</label>
+          <div class="detail-val blue" id="modal-sid-range">-</div>
+        </div>
+        <div class="detail-item">
+          <label>Rate A2P</label>
+          <div class="detail-val" id="modal-rate">-</div>
+        </div>
+        <div class="detail-item">
+          <label>SID→DID Limit</label>
+          <div class="detail-val" id="modal-sid-did">-</div>
+        </div>
+      </div>
+      <div class="detail-info">
+        <b style="color:var(--ink)">Test Number:</b> <span id="modal-test-num" style="font-family:var(--mono)">-</span><br>
+        <b style="color:var(--ink)">Term ID:</b> <span id="modal-term-id" style="font-family:var(--mono)">-</span>
+      </div>
+      <button class="btn-add-modal" id="modal-add-btn" onclick="modalAddNumber()">➕ Add Number</button>
+    </div>
+  </div>
+</div>
 
 <script>
-let _my=[], _myFiltered=[], _myPage=1;
-let _test=[], _testFiltered=[], _testPage=1;
+let _mTermId='', _mTestNum='';
+let _myData=[], _myPage=1, _myPS=20;
+let _testData=[], _testPage=1, _testPS=20;
+let _selIds=new Set(), _testLoaded=false;
+let _myTimer=null, _testTimer=null;
 
-// ── Tab switch ──
-function switchTab(t) {
-  document.getElementById('pane-my').style.display   = t==='my'?'':'none';
-  document.getElementById('pane-test').style.display = t==='test'?'':'none';
-  document.getElementById('tab-my').className   = 'tab'+(t==='my'?' active':'');
-  document.getElementById('tab-test').className = 'tab'+(t==='test'?' active':'');
-  if (t==='test' && !_test.length) loadTest();
+function debounceMy(){ clearTimeout(_myTimer); _myTimer=setTimeout(loadMy,400); }
+function debounceTest(){ clearTimeout(_testTimer); _testTimer=setTimeout(loadTest,400); }
+
+function switchTab(t){
+  document.getElementById('tab-my').classList.toggle('active',t==='my');
+  document.getElementById('tab-test').classList.toggle('active',t==='test');
+  document.getElementById('panel-my').style.display  = t==='my'?'':'none';
+  document.getElementById('panel-test').style.display= t==='test'?'':'none';
+  if(t==='test'&&!_testLoaded){ _testLoaded=true; loadTest(); }
 }
 
-// ── Toast ──
-function toast(msg, type='ok') {
-  const el=document.getElementById('toast');
-  el.textContent=msg; el.className=`toast show ${type}`;
-  setTimeout(()=>el.className='toast',3000);
+function toggleAll(cb){
+  document.querySelectorAll('.cb-row').forEach(x=>{
+    x.checked=cb.checked;
+    if(cb.checked) _selIds.add(x.dataset.id); else _selIds.delete(x.dataset.id);
+  });
+  document.getElementById('bulk-del-btn').style.display=_selIds.size?'':'none';
+}
+function toggleOne(cb){
+  if(cb.checked) _selIds.add(cb.dataset.id); else _selIds.delete(cb.dataset.id);
+  document.getElementById('bulk-del-btn').style.display=_selIds.size?'':'none';
+  document.getElementById('cb-all').checked=!document.querySelector('.cb-row:not(:checked)');
 }
 
-// ── MY NUMBERS ──
-async function loadMy() {
-  const body=document.getElementById('myBody');
-  body.innerHTML='<tr><td colspan="8" class="iv-empty"><span class="spin"></span> Memuat...</td></tr>';
-  try {
-    const d=await apiFetch('/api/numbers/my-list?limit=1000');
-    _my = d.numbers||[];
-    _myFiltered = [..._my];
-    document.getElementById('myCount').textContent = _my.length+' entries';
-    _myPage=1; renderMy();
-  } catch(e) {
-    body.innerHTML=`<tr><td colspan="8" class="iv-empty" style="color:#ef4444">Error: ${escHtml(e.message)}</td></tr>`;
+// MY NUMBERS
+async function loadMy(){
+  _myPage=1;
+  const s=document.getElementById('my-search').value.trim();
+  const lim=document.getElementById('my-limit').value;
+  const body=document.getElementById('my-tbody');
+  document.getElementById('my-err').style.display='none';
+  body.innerHTML='<tr><td colspan="8" class="iv-empty"><div class="spin" style="margin:0 auto 8px"></div>Memuat...</td></tr>';
+  try{
+    const d=await apiFetch(`/api/numbers/my-list?search=${encodeURIComponent(s)}&limit=${lim}`);
+    _myData=d.numbers||[];
+    document.getElementById('my-total-ivas').textContent=d.total_ivas||_myData.length;
+    document.getElementById('my-total').textContent=_myData.length;
+    renderMy();
+  }catch(e){
+    const el=document.getElementById('my-err');
+    el.textContent='Error: '+e.message; el.style.display='';
+    body.innerHTML='<tr><td colspan="8" class="iv-empty" style="color:#ef4444">Gagal memuat data.</td></tr>';
   }
 }
 
-function filterMy() {
-  const q=document.getElementById('mySearch').value.trim().toLowerCase();
-  _myFiltered = q ? _my.filter(n=>(n.number||'').includes(q)||(n.range_name||'').toLowerCase().includes(q)) : [..._my];
-  _myPage=1; renderMy();
-}
-
-function toggleAllMy(cb) {
-  document.querySelectorAll('.my-cb').forEach(c=>c.checked=cb.checked);
-}
-
-function renderMy() {
-  const perPage=parseInt(document.getElementById('myShow').value)||20;
-  const total=_myFiltered.length;
-  const pages=Math.max(1,Math.ceil(total/perPage));
-  if (_myPage>pages) _myPage=pages;
-  const start=(_myPage-1)*perPage, end=Math.min(start+perPage,total);
-  const slice=_myFiltered.slice(start,end);
-  const body=document.getElementById('myBody');
-  if (!slice.length) {
-    body.innerHTML='<tr><td colspan="8" class="iv-empty">Tidak ada nomor.</td></tr>'; return;
+function renderMy(){
+  const tbody=document.getElementById('my-tbody');
+  const pg=document.getElementById('my-pager');
+  if(!_myData.length){
+    tbody.innerHTML='<tr><td colspan="8" class="iv-empty">Tidak ada nomor ditemukan.</td></tr>';
+    pg.style.display='none'; return;
   }
-  body.innerHTML=slice.map(n=>`
-  <tr>
-    <td><input type="checkbox" class="cb my-cb" value="${escHtml(n.number_id||'')}"/></td>
-    <td class="num-cell">${escHtml(n.number||'')}</td>
-    <td class="rng-cell">${escHtml(n.range_name||'')}</td>
-    <td class="rate-cell">${escHtml(n.rate_a2p||'')}</td>
-    <td class="lim-cell">${escHtml(n.limit_range||'')}</td>
-    <td class="lim-cell">${escHtml(n.limit_did_a2p||'-')}</td>
-    <td class="lim-cell">${escHtml(n.limit_cli_a2p||'-')}</td>
-    <td style="text-align:center">
-      <button class="btn-del" onclick="delNumber('${escHtml(n.number_id||'')}','${escHtml(n.number||'')}',this)">🗑</button>
-    </td>
-  </tr>`).join('');
-  document.getElementById('myInfo').textContent=`Showing ${start+1} to ${end} of ${total} entries`;
-  renderPager('myPager', _myPage, pages, p=>{_myPage=p;renderMy();});
+  const s=(_myPage-1)*_myPS, e=s+_myPS;
+  tbody.innerHTML=_myData.slice(s,e).map(r=>`
+<tr>
+  <td><input type="checkbox" class="cb cb-row" data-id="${escHtml(r.number_id||'')}" onchange="toggleOne(this)"/></td>
+  <td class="num-cell">${escHtml(r.number||'—')}</td>
+  <td class="rng-cell">${escHtml(r.range_name||'—')}</td>
+  <td class="rate-cell">${escHtml(r.rate_a2p||r.rates||'—')}</td>
+  <td class="lim-cell">${escHtml(r.limit_range||'—')}</td>
+  <td class="lim-cell">${escHtml(r.sid_range_limit||'—')}</td>
+  <td class="lim-cell">${escHtml(r.sid_did_limit||'—')}</td>
+  <td><button class="btn-del" onclick="returnNum('${escHtml(r.number_id||'')}','${escHtml(r.number||'')}',this)" ${r.number_id?'':'disabled'}>Return</button></td>
+</tr>`).join('');
+  const tot=_myData.length, pages=Math.ceil(tot/_myPS);
+  document.getElementById('my-info').textContent=`Showing ${s+1}–${Math.min(e,tot)} of ${tot}`;
+  document.getElementById('my-pg-btns').innerHTML=Array.from({length:Math.min(pages,10)},(_,i)=>i+1).map(p=>
+    `<button class="pg-btn${p===_myPage?' active':''}" onclick="_myPage=${p};renderMy()">${p}</button>`).join('');
+  pg.style.display='';
 }
 
-async function delNumber(tid, num, btn) {
-  if (!tid) { toast('Tidak ada termination ID','err'); return; }
-  if (!confirm(`Hapus nomor ${num}?`)) return;
+async function returnNum(tid,num,btn){
+  if(!tid) return showToast('Termination ID tidak ditemukan','error');
+  if(!confirm('Return nomor '+num+'?')) return;
   btn.disabled=true; btn.textContent='⏳';
-  try {
-    const d=await apiFetch(`/api/numbers/delete?termination_id=${encodeURIComponent(tid)}`,{method:'POST'});
-    if (d.status==='ok'&&d.success) {
-      toast(`✅ ${num} berhasil dihapus`);
-      _my=_my.filter(n=>n.number_id!==tid);
-      filterMy();
-    } else {
-      toast(d.message||'Gagal hapus','err');
-      btn.disabled=false; btn.textContent='🗑';
-    }
-  } catch(e) { toast(e.message,'err'); btn.disabled=false; btn.textContent='🗑'; }
+  try{
+    const d=await apiFetch(`/api/numbers/delete?termination_id=${tid}`,{method:'POST'});
+    if(d.success){ showToast('Nomor berhasil di-return ✅'); loadMy(); }
+    else showToast(d.message||'Gagal','error');
+  }catch(e){ showToast(e.message,'error'); }
+  btn.disabled=false; btn.textContent='Return';
 }
 
-// ── TEST NUMBERS ──
-async function loadTest() {
-  const body=document.getElementById('testBody');
-  body.innerHTML='<tr><td colspan="8" class="iv-empty"><span class="spin"></span> Memuat...</td></tr>';
-  try {
-    const d=await apiFetch('/api/numbers/test-list?limit=1000');
-    _test=d.numbers||[];
-    _testFiltered=[..._test];
-    document.getElementById('testCount').textContent=_test.length+' entries';
-    _testPage=1; renderTest();
-  } catch(e) {
-    body.innerHTML=`<tr><td colspan="8" class="iv-empty" style="color:#ef4444">Error: ${escHtml(e.message)}</td></tr>`;
+async function bulkReturn(){
+  if(!_selIds.size) return;
+  if(!confirm('Return '+_selIds.size+' nomor?')) return;
+  let ok=0,fail=0;
+  for(const tid of _selIds){
+    try{ const d=await apiFetch(`/api/numbers/delete?termination_id=${tid}`,{method:'POST'}); d.success?ok++:fail++; }
+    catch{ fail++; }
+  }
+  showToast('Return: '+ok+' berhasil, '+fail+' gagal');
+  _selIds.clear();
+  document.getElementById('bulk-del-btn').style.display='none';
+  loadMy();
+}
+
+// TEST NUMBERS
+async function loadTest(){
+  _testPage=1;
+  const s=document.getElementById('test-search').value.trim();
+  const lim=document.getElementById('test-limit').value;
+  const body=document.getElementById('test-tbody');
+  document.getElementById('test-err').style.display='none';
+  body.innerHTML='<tr><td colspan="8" class="iv-empty"><div class="spin" style="margin:0 auto 8px"></div>Memuat Test Numbers dari iVAS...</td></tr>';
+  try{
+    const d=await apiFetch(`/api/numbers/test-list?search=${encodeURIComponent(s)}&limit=${lim}`);
+    _testData=d.numbers||[];
+    document.getElementById('test-total-ivas').textContent=d.total_ivas||'?';
+    document.getElementById('test-total').textContent=_testData.length;
+    renderTest();
+  }catch(e){
+    const el=document.getElementById('test-err');
+    el.textContent='Error: '+e.message; el.style.display='';
+    body.innerHTML='<tr><td colspan="8" class="iv-empty" style="color:#ef4444">Gagal memuat data.</td></tr>';
   }
 }
 
-function filterTest() {
-  const q=document.getElementById('testSearch').value.trim().toLowerCase();
-  _testFiltered=q?_test.filter(n=>(n.test_number||'').includes(q)||(n.range_name||'').toLowerCase().includes(q)):[..._test];
-  _testPage=1; renderTest();
-}
-
-function renderTest() {
-  const perPage=parseInt(document.getElementById('testShow').value)||50;
-  const total=_testFiltered.length;
-  const pages=Math.max(1,Math.ceil(total/perPage));
-  if (_testPage>pages) _testPage=pages;
-  const start=(_testPage-1)*perPage, end=Math.min(start+perPage,total);
-  const slice=_testFiltered.slice(start,end);
-  const body=document.getElementById('testBody');
-  if (!slice.length) {
-    body.innerHTML='<tr><td colspan="8" class="iv-empty">Tidak ada nomor.</td></tr>'; return;
+function renderTest(){
+  const tbody=document.getElementById('test-tbody');
+  const pg=document.getElementById('test-pager');
+  if(!_testData.length){
+    tbody.innerHTML='<tr><td colspan="8" class="iv-empty">Tidak ada data. Coba kata kunci lain.</td></tr>';
+    pg.style.display='none'; return;
   }
-  body.innerHTML=slice.map(n=>`
-  <tr>
-    <td class="rng-cell">${escHtml(n.range_name||'')}</td>
-    <td class="num-cell">${escHtml(n.test_number||'')}</td>
-    <td class="lim-cell">${escHtml(n.term||'')}</td>
-    <td class="rate-cell">${escHtml(n.rate_a2p||'')}</td>
-    <td class="lim-cell">${escHtml(n.limit_range||'')}</td>
-    <td class="lim-cell">-</td>
-    <td class="lim-cell">-</td>
-    <td style="text-align:center">
-      <button class="btn-add" id="addbtn-${escHtml(n.number_id||n.test_number)}"
-        onclick="addNumber('${escHtml(n.number_id||'')}','${escHtml(n.test_number||'')}',this)">+</button>
-    </td>
-  </tr>`).join('');
-  document.getElementById('testInfo').textContent=`Showing ${start+1} to ${end} of ${total} entries`;
-  renderPager('testPager', _testPage, pages, p=>{_testPage=p;renderTest();});
+  const s=(_testPage-1)*_testPS, e=s+_testPS;
+  tbody.innerHTML=_testData.slice(s,e).map(r=>`
+<tr>
+  <td class="rng-cell">${escHtml(r.range_name||'—')}</td>
+  <td class="num-cell">${escHtml(r.test_number||'—')}</td>
+  <td class="rate-cell">${escHtml(r.term||'—')}</td>
+  <td class="rate-cell">${escHtml(r.rate_a2p||'0.01200')}</td>
+  <td class="lim-cell">${escHtml(r.limit_range||'200000')}</td>
+  <td class="lim-cell">${escHtml(r.sid_range_limit||'400')}</td>
+  <td class="lim-cell">${escHtml(r.sid_did_limit||'40')}</td>
+  <td style="display:flex;gap:5px;align-items:center">
+    <button class="btn-info" onclick='showDetail(${JSON.stringify(r)})'>Details</button>
+    <button class="btn-add" onclick="addNum('${escHtml(r.number_id||'')}','${escHtml(r.test_number||'')}',this)" ${r.number_id?'':'disabled'}>➕</button>
+  </td>
+</tr>`).join('');
+  const tot=_testData.length, pages=Math.ceil(tot/_testPS);
+  document.getElementById('test-info').textContent=`Showing ${s+1}–${Math.min(e,tot)} of ${tot}`;
+  document.getElementById('test-pg-btns').innerHTML=Array.from({length:Math.min(pages,10)},(_,i)=>i+1).map(p=>
+    `<button class="pg-btn${p===_testPage?' active':''}" onclick="_testPage=${p};renderTest()">${p}</button>`).join('');
+  pg.style.display='';
 }
 
-async function addNumber(tid, num, btn) {
-  if (!tid) { toast('Tidak ada termination ID','err'); return; }
+async function addNum(tid,num,btn){
+  if(!tid) return showToast('Termination ID tidak tersedia','error');
   btn.disabled=true; btn.textContent='⏳';
-  try {
-    const d=await apiFetch(`/api/numbers/add?termination_id=${encodeURIComponent(tid)}`,{method:'POST'});
-    if (d.status==='ok'&&(d.success||d.added>0)) {
-      toast(`✅ ${num} berhasil ditambahkan`);
-      btn.textContent='✓'; btn.style.background='rgba(34,197,94,.2)'; btn.style.color='#22c55e';
-    } else {
-      toast(d.message||'Gagal tambah','err');
-      btn.disabled=false; btn.textContent='+';
-    }
-  } catch(e) { toast(e.message,'err'); btn.disabled=false; btn.textContent='+'; }
+  try{
+    const d=await apiFetch(`/api/numbers/add?termination_id=${tid}`,{method:'POST'});
+    if(d.success){ showToast(num+' berhasil ditambahkan ✅'); btn.textContent='✅'; }
+    else{ showToast(d.message||'Gagal','error'); btn.disabled=false; btn.textContent='➕'; }
+  }catch(e){ showToast(e.message,'error'); btn.disabled=false; btn.textContent='➕'; }
 }
 
-// ── Pager helper ──
-function renderPager(containerId, current, total, cb) {
-  const el=document.getElementById(containerId);
-  if (total<=1) { el.innerHTML=''; return; }
-  const pages=[];
-  // prev
-  pages.push(`<button class="pg-btn" ${current===1?'disabled':''} onclick="(${cb})(${current-1})">‹ Prev</button>`);
-  // page numbers (max 5)
-  let s=Math.max(1,current-2), e=Math.min(total,s+4);
-  if (e-s<4) s=Math.max(1,e-4);
-  for (let p=s;p<=e;p++)
-    pages.push(`<button class="pg-btn${p===current?' active':''}" onclick="(${cb})(${p})">${p}</button>`);
-  pages.push(`<button class="pg-btn" ${current===total?'disabled':''} onclick="(${cb})(${current+1})">Next ›</button>`);
-  el.innerHTML=pages.join('');
+// MODAL
+function showDetail(r){
+  _mTermId=r.number_id||''; _mTestNum=r.test_number||'';
+  document.getElementById('modal-rng-name').textContent  =r.range_name||'—';
+  document.getElementById('modal-range-limit').textContent=r.limit_range||'200000';
+  document.getElementById('modal-sid-range').textContent  =r.sid_range_limit||'400';
+  document.getElementById('modal-rate').textContent       =r.rate_a2p?r.rate_a2p+' USD':'0.01200 USD';
+  document.getElementById('modal-sid-did').textContent    =r.sid_did_limit||'40';
+  document.getElementById('modal-test-num').textContent   =r.test_number||'—';
+  document.getElementById('modal-term-id').textContent    =r.number_id||'—';
+  const btn=document.getElementById('modal-add-btn');
+  btn.disabled=!_mTermId; btn.textContent='➕ Add Number';
+  document.getElementById('rangeModal').classList.add('open');
+}
+function closeModal(){ document.getElementById('rangeModal').classList.remove('open'); }
+document.getElementById('rangeModal').addEventListener('click',function(e){ if(e.target===this) closeModal(); });
+
+async function modalAddNumber(){
+  const btn=document.getElementById('modal-add-btn');
+  if(!_mTermId) return;
+  btn.disabled=true; btn.textContent='⏳ Adding...';
+  try{
+    const d=await apiFetch(`/api/numbers/add?termination_id=${_mTermId}`,{method:'POST'});
+    if(d.success){ showToast(_mTestNum+' berhasil ditambahkan ✅'); btn.textContent='✅ Added!'; setTimeout(closeModal,1200); }
+    else{ showToast(d.message||'Gagal','error'); btn.disabled=false; btn.textContent='➕ Add Number'; }
+  }catch(e){ showToast(e.message,'error'); btn.disabled=false; btn.textContent='➕ Add Number'; }
 }
 
-function exportMyCSV() {
-  const rows=[['Number','Range','Rate','Limit'],..._myFiltered.map(n=>[n.number,n.range_name,n.rate_a2p,n.limit_range])];
-  const b=new Blob([rows.map(r=>r.join(',')).join('\n')],{type:'text/csv'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='my-numbers.csv';a.click();
+function showToast(msg,type='ok'){
+  const el=document.createElement('div');
+  el.style.cssText=`position:fixed;bottom:24px;right:24px;z-index:9999;padding:10px 18px;border-radius:10px;font-size:13px;font-weight:600;color:#fff;background:${type==='ok'?'#22c55e':'#ef4444'};box-shadow:0 4px 20px rgba(0,0,0,.4)`;
+  el.textContent=msg; document.body.appendChild(el);
+  setTimeout(()=>el.remove(),3000);
 }
 
-// init
 loadMy();
 </script>
 {% endblock %}
