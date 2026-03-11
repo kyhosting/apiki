@@ -255,7 +255,7 @@ def ivas_login(user_id: int, ivas_email: str, ivas_pass: str) -> dict:
     """Login ke iVAS dengan kredensial user. Simpan session ke memory."""
     scraper = _make_scraper()
     try:
-        pg   = scraper.get(IVAS_LOGIN, timeout=20)
+        pg   = scraper.get(IVAS_LOGIN, timeout=8)
         soup = BeautifulSoup(pg.text, "html.parser")
         tok_el = soup.find("input", {"name": "_token"})
         if not tok_el:
@@ -266,13 +266,13 @@ def ivas_login(user_id: int, ivas_email: str, ivas_pass: str) -> dict:
             data={"email": ivas_email, "password": ivas_pass, "_token": tok},
             headers={"Content-Type": "application/x-www-form-urlencoded",
                      "Referer": IVAS_LOGIN, "Origin": IVAS_BASE},
-            allow_redirects=True, timeout=20)
+            allow_redirects=True, timeout=8)
 
         if "/login" in resp.url:
             return {"ok": False, "error": "Email atau password iVAS salah"}
 
         # ── Ambil CSRF dari halaman live ──
-        portal = scraper.get(IVAS_LIVE_MY, timeout=15)
+        portal = scraper.get(IVAS_LIVE_MY, timeout=8)
         html   = decode_resp(portal)
         psoup  = BeautifulSoup(html, "html.parser")
         meta   = psoup.find("meta", {"name": "csrf-token"})
@@ -280,23 +280,31 @@ def ivas_login(user_id: int, ivas_email: str, ivas_pass: str) -> dict:
         csrf   = meta["content"] if meta else (inp["value"] if inp else tok)
 
         # ── Ambil recv_csrf khusus dari /portal/sms/received ──
+        # Skip fetch terpisah saat login — gunakan csrf sama, akan di-refresh lazy saat dipakai
         recv_csrf = csrf
-        try:
-            recv_pg   = scraper.get(IVAS_RECV, timeout=15)
-            recv_html = decode_resp(recv_pg)
-            recv_soup = BeautifulSoup(recv_html, "html.parser")
-            recv_meta = recv_soup.find("meta", {"name": "csrf-token"})
-            if recv_meta:
-                recv_csrf = recv_meta["content"]
-            else:
-                recv_inp = recv_soup.find("input", {"name": "_token"})
-                if recv_inp:
-                    recv_csrf = recv_inp["value"]
+        # Background fetch recv_csrf (tidak blokir login)
+        def _bg_recv_csrf():
+            try:
+                recv_pg   = scraper.get(IVAS_RECV, timeout=8)
+                recv_html = decode_resp(recv_pg)
+                recv_soup = BeautifulSoup(recv_html, "html.parser")
+                recv_meta = recv_soup.find("meta", {"name": "csrf-token"})
+                if recv_meta:
+                    new_csrf = recv_meta["content"]
                 else:
-                    mm = re.search(r"""['"]_token['"]\s*[,:]?\s*['"]([A-Za-z0-9_\-+/=]{20,})['"]""", recv_html)
-                    if mm: recv_csrf = mm.group(1)
-        except Exception as e:
-            logger.warning(f"[iVAS] Gagal ambil recv_csrf: {e}")
+                    recv_inp = recv_soup.find("input", {"name": "_token"})
+                    if recv_inp:
+                        new_csrf = recv_inp["value"]
+                    else:
+                        mm = re.search(r"""['"]_token['"]\s*[,:]?\s*['"]([A-Za-z0-9_\-+/=]{20,})['"]""", recv_html)
+                        new_csrf = mm.group(1) if mm else None
+                if new_csrf:
+                    with _ivas_lock:
+                        if user_id in _ivas_sessions:
+                            _ivas_sessions[user_id]["recv_csrf"] = new_csrf
+            except Exception as e:
+                logger.warning(f"[iVAS] bg recv_csrf error: {e}")
+        threading.Thread(target=_bg_recv_csrf, daemon=True).start()
 
         # ── Ambil JWT + user_hash + livesms_event dari halaman live ──
         jwt_tok       = ""
@@ -408,7 +416,7 @@ def do_ivas(user_id, method, url, data=None, headers=None):
             data["_token"] = sess["csrf"]
 
         try:
-            kw = dict(headers=headers, timeout=25, allow_redirects=True)
+            kw = dict(headers=headers, timeout=10, allow_redirects=True)
             if method.upper() == "POST":
                 r = scraper.post(url, data=data, **kw)
             else:
@@ -602,7 +610,7 @@ def _fetch_datatables(user_id, base_url, search="", length=100,
     }
     scraper = sess["scraper"]
     try:
-        resp = scraper.get(f"{base_url}?{qs}", headers=hdrs, timeout=20)
+        resp = scraper.get(f"{base_url}?{qs}", headers=hdrs, timeout=8)
         if _is_expired(resp):
             with _ivas_lock: _ivas_sessions.pop(user_id, None)
             return [], 0
@@ -738,7 +746,7 @@ def _ivas_scrape_public(user_id, limit=100, sid_filter="", rng_filter=""):
     items = []
     try:
         scraper = sess["scraper"]
-        resp    = scraper.get(f"{PUBLIC_URL}?{qs}", headers=hdrs, timeout=20)
+        resp    = scraper.get(f"{PUBLIC_URL}?{qs}", headers=hdrs, timeout=8)
         if not resp or resp.status_code != 200: return []
         rows = resp.json().get("data",[])
         for row in rows:
@@ -786,7 +794,7 @@ def ivas_live_get_numbers(user_id, termination_id):
                 "Origin":           IVAS_BASE,
                 "Referer":          IVAS_LIVE_MY,
             },
-            timeout=20)
+            timeout=8)
         body = decode_resp(r)
         try:
             data = r.json()

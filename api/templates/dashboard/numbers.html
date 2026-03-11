@@ -267,16 +267,42 @@ async function loadMy(){
   const lim=document.getElementById('my-limit').value;
   const body=document.getElementById('my-tbody');
   document.getElementById('my-err').style.display='none';
-  body.innerHTML='<tr><td colspan="8" class="iv-empty"><div class="spin" style="margin:0 auto 8px"></div>Memuat...</td></tr>';
+  body.innerHTML='<tr><td colspan="8" class="iv-empty"><div class="spin" style="margin:0 auto 8px"></div>Memuat My Numbers...</td></tr>';
   try{
-    const d=await _apiFetch(`/api/numbers/my-list?search=${encodeURIComponent(s)}&limit=${lim}`);
+    // FIX: tambah AbortController timeout 30 detik supaya tidak stuck selamanya
+    const ctrl = new AbortController()
+    const tid = setTimeout(() => ctrl.abort(), 30000)
+    let d;
+    try {
+      d = await _apiFetch(`/api/numbers/my-list?search=${encodeURIComponent(s)}&limit=${lim}`, {signal: ctrl.signal});
+    } finally { clearTimeout(tid) }
+
+    // FIX: handle null (401 redirect), undefined, atau error response
+    if(!d){
+      body.innerHTML='<tr><td colspan="8" class="iv-empty" style="color:#ef4444">Sesi habis, harap login ulang.</td></tr>';
+      return;
+    }
+    if(d.status==='error' || d.ivas_expired){
+      // ivas_expired sudah di-handle oleh _triggerReconnect di _apiFetch
+      if(!d.ivas_expired){
+        body.innerHTML=`<tr><td colspan="8" class="iv-empty" style="color:#ef4444">${d.message||'Gagal memuat data'}</td></tr>`;
+      } else {
+        body.innerHTML='<tr><td colspan="8" class="iv-empty" style="color:#f59e0b">⚠️ Session iVAS expired — login ulang otomatis, tunggu sebentar...</td></tr>';
+      }
+      return;
+    }
     _myData=d.numbers||[];
     document.getElementById('my-total-ivas').textContent=(d.total_ivas!=null?d.total_ivas:_myData.length);
     document.getElementById('my-total').textContent=_myData.length;
     renderMy();
   }catch(e){
     const el=document.getElementById('my-err');
-    el.textContent='Error: '+e.message; el.style.display='';
+    if(e.name==='AbortError'){
+      el.textContent='Timeout: iVAS terlalu lama merespons. Coba refresh.';
+    } else {
+      el.textContent='Error: '+e.message;
+    }
+    el.style.display='';
     body.innerHTML='<tr><td colspan="8" class="iv-empty" style="color:#ef4444">Gagal memuat data.</td></tr>';
   }
 }
@@ -360,14 +386,37 @@ async function loadTest(){
   document.getElementById('test-err').style.display='none';
   body.innerHTML='<tr><td colspan="8" class="iv-empty"><div class="spin" style="margin:0 auto 8px"></div>Memuat Test Numbers dari iVAS...</td></tr>';
   try{
-    const d=await _apiFetch(`/api/numbers/test-list?search=${encodeURIComponent(s)}&limit=${lim}`);
+    const ctrl = new AbortController()
+    const tid = setTimeout(() => ctrl.abort(), 30000)
+    let d;
+    try {
+      d = await _apiFetch(`/api/numbers/test-list?search=${encodeURIComponent(s)}&limit=${lim}`, {signal: ctrl.signal});
+    } finally { clearTimeout(tid) }
+
+    if(!d){
+      body.innerHTML='<tr><td colspan="8" class="iv-empty" style="color:#ef4444">Sesi habis, harap login ulang.</td></tr>';
+      return;
+    }
+    if(d.status==='error' || d.ivas_expired){
+      if(!d.ivas_expired){
+        body.innerHTML=`<tr><td colspan="8" class="iv-empty" style="color:#ef4444">${d.message||'Gagal memuat data'}</td></tr>`;
+      } else {
+        body.innerHTML='<tr><td colspan="8" class="iv-empty" style="color:#f59e0b">⚠️ Session iVAS expired — login ulang otomatis, tunggu sebentar...</td></tr>';
+      }
+      return;
+    }
     _testData=d.numbers||[];
     document.getElementById('test-total-ivas').textContent=(d.total_ivas!=null?d.total_ivas:0);
     document.getElementById('test-total').textContent=_testData.length;
     renderTest();
   }catch(e){
     const el=document.getElementById('test-err');
-    el.textContent='Error: '+e.message; el.style.display='';
+    if(e.name==='AbortError'){
+      el.textContent='Timeout: iVAS terlalu lama merespons. Coba refresh.';
+    } else {
+      el.textContent='Error: '+e.message;
+    }
+    el.style.display='';
     body.innerHTML='<tr><td colspan="8" class="iv-empty" style="color:#ef4444">Gagal memuat data.</td></tr>';
   }
 }
