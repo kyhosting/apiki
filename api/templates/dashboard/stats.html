@@ -1,0 +1,126 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}Statistik API{% endblock %}
+{% block content %}
+<div class="page-hdr">
+  <div class="page-title">📊 Statistik Penggunaan API</div>
+  <div class="page-sub">Riwayat dan statistik penggunaan API Key kamu</div>
+</div>
+
+<div class="stats-grid" style="margin-bottom:16px">
+  <div class="stat">
+    <div class="stat-icon">📊</div>
+    <div class="stat-val" id="totalReq">{{ total }}</div>
+    <div class="stat-label">Total Request</div>
+  </div>
+  <div class="stat">
+    <div class="stat-icon">📅</div>
+    <div class="stat-val" id="todayReq" style="color:var(--accent)">{{ today }}</div>
+    <div class="stat-label">Hari Ini</div>
+  </div>
+  <div class="stat">
+    <div class="stat-icon">⚡</div>
+    <div class="stat-val" id="wsCount">0</div>
+    <div class="stat-label">SMS Live Cache</div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+  <!-- Top endpoints -->
+  <div class="card">
+    <div class="card-header"><div class="card-title">🏆 Endpoint Terpopuler</div></div>
+    <div id="topEps">
+      {% set ep_counts = {} %}
+      {% for log in logs %}
+        {# Count endpoints #}
+      {% endfor %}
+      <div style="color:var(--ink2);font-size:13px;text-align:center;padding:16px">Memuat...</div>
+    </div>
+  </div>
+
+  <!-- Status distribution -->
+  <div class="card">
+    <div class="card-header"><div class="card-title">✓ Distribusi Status</div></div>
+    <div id="statusDist"></div>
+  </div>
+</div>
+
+<!-- Logs table -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">📜 Log Request Terbaru</div>
+    <button class="btn btn-outline btn-xs" onclick="loadStats()">↺ Refresh</button>
+  </div>
+  <div class="tbl-wrap" style="max-height:400px;overflow-y:auto">
+    <table>
+      <thead><tr><th>Waktu</th><th>Method</th><th>Endpoint</th><th>Status</th></tr></thead>
+      <tbody id="logsBody">
+        {% for log in logs %}
+        <tr>
+          <td style="font-size:11px;font-family:var(--mono);white-space:nowrap;color:var(--ink2)">{{ (log.created_at or '')[:16].replace('T',' ') }}</td>
+          <td><span class="badge {% if log.method=='GET' %}badge-green{% else %}badge-yellow{% endif %}">{{ log.method }}</span></td>
+          <td style="font-family:var(--mono);font-size:12px;color:var(--ink2)">{{ log.endpoint }}</td>
+          <td><span class="badge {% if log.status < 300 %}badge-green{% elif log.status < 500 %}badge-yellow{% else %}badge-red{% endif %}">{{ log.status }}</span></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" style="text-align:center;padding:24px;color:var(--ink2)">Belum ada log. Mulai gunakan API Key.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+async function loadStats(){
+  const d=await apiFetch('/api/stats');
+  document.getElementById('totalReq').textContent=d.total_requests||0;
+  document.getElementById('todayReq').textContent=d.today_requests||0;
+  document.getElementById('wsCount').textContent=d.ws_cached_sms||0;
+
+  const eps=document.getElementById('topEps');
+  if(d.top_endpoints?.length){
+    const max=d.top_endpoints[0].cnt;
+    eps.innerHTML=d.top_endpoints.map(e=>`
+      <div style="margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+          <span style="font-family:var(--mono);color:var(--ink2)">${escHtml(e.endpoint)}</span>
+          <span style="font-weight:700;color:var(--accent)">${e.cnt}</span>
+        </div>
+        <div style="height:4px;background:var(--bg2);border-radius:2px">
+          <div style="height:4px;background:var(--accent);border-radius:2px;width:${Math.round(e.cnt/max*100)}%;transition:.4s"></div>
+        </div>
+      </div>`).join('');
+  } else {
+    eps.innerHTML='<div style="color:var(--ink2);font-size:13px;text-align:center;padding:16px">Belum ada data</div>';
+  }
+
+  // Status distribution from logs table
+  const rows=document.querySelectorAll('#logsBody tr');
+  let ok2xx=0,c4xx=0,c5xx=0;
+  rows.forEach(r=>{
+    const txt=r.querySelector('td:last-child')?.textContent||'';
+    const n=parseInt(txt)||0;
+    if(n>=500)c5xx++; else if(n>=400)c4xx++; else if(n>=200)ok2xx++;
+  });
+  const total2=ok2xx+c4xx+c5xx||1;
+  document.getElementById('statusDist').innerHTML=`
+    <div style="display:flex;flex-direction:column;gap:10px;padding:4px 0">
+      ${[
+        {label:'2xx OK',count:ok2xx,color:'var(--green)'},
+        {label:'4xx Client Error',count:c4xx,color:'var(--yellow)'},
+        {label:'5xx Server Error',count:c5xx,color:'var(--red)'},
+      ].map(s=>`
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+            <span style="color:var(--ink2)">${s.label}</span>
+            <span style="font-weight:700;color:${s.color}">${s.count}</span>
+          </div>
+          <div style="height:4px;background:var(--bg2);border-radius:2px">
+            <div style="height:4px;background:${s.color};border-radius:2px;width:${Math.round(s.count/total2*100)}%"></div>
+          </div>
+        </div>`).join('')}
+    </div>`;
+}
+loadStats();
+setInterval(loadStats,15000);
+</script>
+{% endblock %}

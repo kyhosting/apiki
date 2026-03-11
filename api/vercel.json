@@ -2,20 +2,22 @@
   "version": 2,
   "builds": [
     {
-      "src": "app.py",
-      "use": "@vercel/python"
+      "src": "wsgi.py",
+      "use": "@vercel/python",
+      "config": {
+        "maxLambdaSize": "50mb",
+        "runtime": "python3.11"
+      }
     }
   ],
   "routes": [
     {
+      "src": "/static/(.*)",
+      "dest": "/static/$1"
+    },
+    {
       "src": "/(.*)",
-      "dest": "app.py"
+      "dest": "wsgi.py"
     }
-  ],
-  "env": {
-    "SECRET_KEY": "@kyshiro-secret-key",
-    "WA_BOT_URL": "@wa-bot-url",
-    "WA_BOT_TOKEN": "@wa-bot-token",
-    "DB_PATH": "/tmp/kyshiro.db"
-  }
+  ]
 }

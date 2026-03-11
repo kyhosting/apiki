@@ -6,7 +6,7 @@
 #  Instagram : @kiki_fzl1
 # ═══════════════════════════════════════════════════════════════════
 
-from flask import (Flask, request, jsonify, Response,
+from flask import (Flask, request, jsonify, Response, g,
                    render_template, redirect, url_for, session, abort, stream_with_context)
 from datetime import datetime, timedelta
 from functools import wraps
@@ -669,7 +669,7 @@ def ivas_required(f):
                         return jsonify({"status":"error","message":f"Login iVAS gagal: {r.get('error')}"}),403
                 else:
                     return jsonify({"status":"error","message":"Belum set kredensial iVAS"}),403
-            request.uid = uid
+            g.uid = uid
             _log_api(uid, request.path, request.method, request.remote_addr, 200)
             return f(*a,**kw)
 
@@ -679,7 +679,7 @@ def ivas_required(f):
         sess = get_ivas_session(uid)
         if not sess:
             return jsonify({"status":"error","message":"Belum login ke iVAS. Pergi ke /dashboard/ivas-login"}),403
-        request.uid = uid
+        g.uid = uid
         return f(*a,**kw)
     return _d
 
@@ -919,6 +919,30 @@ def pg_docs():
 def pg_profile():
     return render_template("dashboard/profile.html",user=_get_user())
 
+
+@app.route("/dashboard/otp-received")
+@login_required
+def pg_otp_received():
+    return render_template("dashboard/otp_received.html",user=_get_user())
+
+@app.route("/dashboard/stats")
+@login_required
+def pg_stats():
+    uid=session["uid"]
+    c=db()
+    logs=c.execute("""SELECT endpoint,method,status,created_at FROM ky_api_logs
+        WHERE user_id=? ORDER BY created_at DESC LIMIT 100""",(uid,)).fetchall()
+    total=c.execute("SELECT COUNT(*) FROM ky_api_logs WHERE user_id=?",(uid,)).fetchone()[0]
+    today=c.execute("SELECT COUNT(*) FROM ky_api_logs WHERE user_id=? AND date(created_at)=date('now')",(uid,)).fetchone()[0]
+    c.close()
+    return render_template("dashboard/stats.html",user=_get_user(),
+        logs=[dict(x) for x in logs],total=total,today=today)
+
+@app.route("/dashboard/support")
+@login_required
+def pg_support():
+    return render_template("dashboard/support.html",user=_get_user())
+
 @app.route("/admin")
 @admin_required
 def pg_admin():
@@ -947,8 +971,9 @@ def pg_admin():
 @login_required
 def api_ivas_login():
     """Login ke iVAS dengan kredensial user sendiri."""
-    ie=request.form.get("ivas_email","") or request.json.get("ivas_email","") if request.is_json else ""
-    ip_=request.form.get("ivas_pass","") or (request.json.get("ivas_pass","") if request.is_json else "")
+    data = request.get_json(silent=True) or {}
+    ie  = (data.get("ivas_email","") or request.form.get("ivas_email","")).strip()
+    ip_ = (data.get("ivas_pass","") or request.form.get("ivas_pass","")).strip()
     if not ie or not ip_:
         return jsonify({"status":"error","message":"ivas_email dan ivas_pass wajib"}),400
     uid=session["uid"]
@@ -997,7 +1022,7 @@ def api_ivas_logout():
 @app.route("/api/sms/live")
 @ivas_required
 def api_sms_live():
-    uid    = request.uid
+    uid    = g.uid
     limit  = min(int(request.args.get("limit",50)),500)
     sid_f  = request.args.get("sid","").lower()
     since  = request.args.get("since","")
@@ -1011,7 +1036,7 @@ def api_sms_live():
 @ivas_required
 def api_sms_live_stream():
     """SSE stream — push otomatis tiap ada SMS baru."""
-    uid   = request.uid
+    uid   = g.uid
     sid_f = request.args.get("sid","").lower()
     last_ts = [""]
     def _gen():
@@ -1033,7 +1058,7 @@ def api_sms_live_stream():
 @app.route("/api/sms/live/clear",methods=["POST"])
 @ivas_required
 def api_sms_live_clear():
-    uid=request.uid
+    uid=g.uid
     with _ws_lock: _ws_live.pop(uid,None)
     return jsonify({"status":"ok","message":"Cache SMS live dikosongkan"})
 
@@ -1041,7 +1066,7 @@ def api_sms_live_clear():
 @app.route("/api/sms/received")
 @ivas_required
 def api_sms_received():
-    uid  = request.uid
+    uid  = g.uid
     rng  = request.args.get("range","").strip()
     num  = request.args.get("number","").strip()
     fd   = request.args.get("from", datetime.now().strftime("%Y-%m-%d"))
@@ -1056,7 +1081,7 @@ def api_sms_received():
 @app.route("/api/ranges")
 @ivas_required
 def api_ranges():
-    uid = request.uid
+    uid = g.uid
     fd  = request.args.get("from", datetime.now().strftime("%Y-%m-%d"))
     td  = request.args.get("to",   datetime.now().strftime("%Y-%m-%d"))
     rngs = ivas_get_ranges(uid,fd,td)
@@ -1066,7 +1091,7 @@ def api_ranges():
 @app.route("/api/numbers")
 @ivas_required
 def api_numbers():
-    uid = request.uid
+    uid = g.uid
     rng = request.args.get("range","").strip()
     fd  = request.args.get("from", datetime.now().strftime("%Y-%m-%d"))
     td  = request.args.get("to",   datetime.now().strftime("%Y-%m-%d"))
@@ -1078,7 +1103,7 @@ def api_numbers():
 @app.route("/api/numbers/my")
 @ivas_required
 def api_numbers_my():
-    uid    = request.uid
+    uid    = g.uid
     search = request.args.get("search","").strip()
     page   = request.args.get("page","test")  # test atau my
     length = min(int(request.args.get("limit",200)),1000)
@@ -1099,7 +1124,7 @@ def api_numbers_my():
 @app.route("/api/check-number")
 @ivas_required
 def api_check_number():
-    uid = request.uid
+    uid = g.uid
     num = request.args.get("number","").strip()
     if not num: return jsonify({"status":"error","message":"Parameter 'number' wajib"}),400
     rows = ivas_my_numbers(uid,search=num,length=50,page="test")
@@ -1119,7 +1144,7 @@ def api_check_number():
 @app.route("/api/numbers/add",methods=["GET","POST"])
 @ivas_required
 def api_add_number():
-    uid  = request.uid
+    uid  = g.uid
     data = request.get_json(silent=True) or {}
     term_id    = (data.get("termination_id","") or request.form.get("termination_id","") or request.args.get("termination_id","")).strip()
     range_name = (data.get("range_name","") or request.form.get("range_name","") or request.args.get("range_name","")).strip()
@@ -1164,7 +1189,7 @@ def api_add_number():
 @app.route("/api/numbers/delete",methods=["GET","POST"])
 @ivas_required
 def api_delete_number():
-    uid  = request.uid
+    uid  = g.uid
     data = request.get_json(silent=True) or {}
     term_id = (data.get("termination_id","") or request.form.get("termination_id","") or request.args.get("termination_id","")).strip()
     number  = (data.get("number","") or request.form.get("number","") or request.args.get("number","")).strip()
@@ -1189,7 +1214,7 @@ def api_delete_number():
 @app.route("/api/ws/reconnect",methods=["POST"])
 @ivas_required
 def api_ws_reconnect():
-    uid=request.uid
+    uid=g.uid
     with _ws_lock:
         sio=_ws_clients.pop(uid,None)
     if sio:
@@ -1276,6 +1301,41 @@ def api_admin_delete(uid):
     if uid==session["uid"]: return jsonify({"status":"error","message":"Tidak bisa hapus diri sendiri"}),400
     c=db(); c.execute("DELETE FROM ky_users WHERE id=?",(uid,)); c.commit(); c.close()
     return jsonify({"status":"ok"})
+
+
+@app.route("/api/sms/otp")
+@ivas_required
+def api_sms_otp():
+    """Ambil pesan OTP/masuk per nomor dari SMS received."""
+    uid  = g.uid
+    num  = request.args.get("number","").strip()
+    rng  = request.args.get("range","").strip()
+    fd   = request.args.get("from", datetime.now().strftime("%Y-%m-%d"))
+    td   = request.args.get("to",   datetime.now().strftime("%Y-%m-%d"))
+    if not num: return jsonify({"status":"error","message":"Parameter 'number' wajib"}),400
+    if not rng: return jsonify({"status":"error","message":"Parameter 'range' wajib"}),400
+    msgs = ivas_get_sms(uid,num,rng,fd,td)
+    otp_list = []
+    for m in msgs:
+        # Ekstrak OTP dari pesan
+        otps = re.findall(r'\b\d{4,8}\b', m)
+        otp_list.append({"message":m,"otp_candidates":otps})
+    return jsonify({"status":"ok","number":num,"range":rng,
+                    "total":len(msgs),"messages":otp_list})
+
+@app.route("/api/stats")
+@login_required
+def api_stats():
+    uid=session["uid"]
+    c=db()
+    total=c.execute("SELECT COUNT(*) FROM ky_api_logs WHERE user_id=?",(uid,)).fetchone()[0]
+    today=c.execute("SELECT COUNT(*) FROM ky_api_logs WHERE user_id=? AND date(created_at)=date('now')",(uid,)).fetchone()[0]
+    top=c.execute("SELECT endpoint,COUNT(*) as cnt FROM ky_api_logs WHERE user_id=? GROUP BY endpoint ORDER BY cnt DESC LIMIT 10",(uid,)).fetchall()
+    c.close()
+    with _ws_lock:
+        ws_live_count = len(_ws_live.get(uid,[]))
+    return jsonify({"status":"ok","total_requests":total,"today_requests":today,
+        "ws_cached_sms":ws_live_count,"top_endpoints":[dict(x) for x in top]})
 
 @app.route("/health")
 def health():

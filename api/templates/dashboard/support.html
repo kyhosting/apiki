@@ -1,0 +1,52 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}Hubungi Developer{% endblock %}
+{% block content %}
+<div class="page-hdr">
+  <div class="page-title">💬 Hubungi Developer</div>
+  <div class="page-sub">Ada pertanyaan, bug, atau butuh bantuan teknis? Hubungi kami</div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-bottom:20px">
+  <a href="https://t.me/shiroky1" target="_blank" class="card" style="transition:all .2s;text-decoration:none;display:block" onmouseover="this.style.borderColor='var(--accent)';this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='var(--border)';this.style.transform=''">
+    <div style="font-size:36px;margin-bottom:12px">✈</div>
+    <div style="font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">Telegram</div>
+    <div style="font-size:16px;font-weight:700;color:var(--accent)">@shiroky1</div>
+    <div style="font-size:12px;color:var(--ink2);margin-top:6px">Respons paling cepat. Untuk bantuan teknis dan bug report.</div>
+  </a>
+
+  <a href="mailto:kikimodesad8@gmail.com" class="card" style="transition:all .2s;text-decoration:none;display:block" onmouseover="this.style.borderColor='var(--accent)';this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='var(--border)';this.style.transform=''">
+    <div style="font-size:36px;margin-bottom:12px">✉</div>
+    <div style="font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">Email</div>
+    <div style="font-size:16px;font-weight:700;color:var(--accent)">kikimodesad8@gmail.com</div>
+    <div style="font-size:12px;color:var(--ink2);margin-top:6px">Untuk laporan formal atau pertanyaan bisnis.</div>
+  </a>
+
+  <a href="https://instagram.com/kiki_fzl1" target="_blank" class="card" style="transition:all .2s;text-decoration:none;display:block" onmouseover="this.style.borderColor='var(--accent)';this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='var(--border)';this.style.transform=''">
+    <div style="font-size:36px;margin-bottom:12px">◎</div>
+    <div style="font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">Instagram</div>
+    <div style="font-size:16px;font-weight:700;color:var(--accent)">@kiki_fzl1</div>
+    <div style="font-size:12px;color:var(--ink2);margin-top:6px">Update terbaru dan info platform.</div>
+  </a>
+</div>
+
+<div class="card" style="max-width:600px">
+  <div class="card-header"><div class="card-title">🖥 Info Platform</div></div>
+  <div style="font-size:13.5px;color:var(--ink2);line-height:1.8">
+    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+      <span>Developer</span><span style="color:var(--ink);font-weight:600">KY-SHIRO OFFICIAL</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+      <span>Platform</span><span style="color:var(--ink)">KY-SHIRO API v2.0</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+      <span>Backend</span><span style="color:var(--ink)">Python Flask + iVAS Gateway</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+      <span>WebSocket</span><span style="color:var(--ink)">ivasms.com:2087 (Socket.IO)</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:8px 0">
+      <span>OTP</span><span style="color:var(--ink)">Baileys WhatsApp Bot</span>
+    </div>
+  </div>
+</div>
+{% endblock %}

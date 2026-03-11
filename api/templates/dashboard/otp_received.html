@@ -1,0 +1,143 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}OTP / Pesan Masuk{% endblock %}
+{% block content %}
+<div class="page-hdr">
+  <div class="page-title">🔑 OTP / Pesan Masuk</div>
+  <div class="page-sub">Lihat pesan OTP yang masuk ke nomor tertentu — langsung dari iVAS</div>
+</div>
+
+<div class="card" style="margin-bottom:14px">
+  <div class="card-header"><div class="card-title">⚙ Parameter</div></div>
+  <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end">
+    <div>
+      <div class="form-label" style="margin-bottom:4px">Tanggal</div>
+      <input type="date" id="fd" class="form-input" style="width:160px"/>
+    </div>
+    <div>
+      <div class="form-label" style="margin-bottom:4px">Range</div>
+      <input type="text" id="rng" class="form-input" placeholder="Contoh: INDONESIA" style="width:200px"/>
+    </div>
+    <div>
+      <div class="form-label" style="margin-bottom:4px">Nomor</div>
+      <input type="text" id="num" class="form-input" placeholder="628xxxxxxxxx" style="width:180px;font-family:var(--mono)"/>
+    </div>
+    <button class="btn btn-primary" onclick="loadOTP()">🔑 Cari OTP</button>
+    <button class="btn btn-outline" onclick="autoDetect()">⚡ Auto Detect</button>
+    <span id="st" style="font-size:12px;color:var(--ink2);align-self:center;font-family:var(--mono)"></span>
+  </div>
+</div>
+
+<!-- Quick range+number picker -->
+<div id="quickPick" class="card" style="margin-bottom:14px;display:none">
+  <div class="card-header"><div class="card-title">⚡ Pilih Nomor Cepat</div></div>
+  <div id="quickNums" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+</div>
+
+<!-- Results -->
+<div class="card" id="resultCard" style="display:none">
+  <div class="card-header">
+    <div class="card-title" id="resultTitle">🔑 Pesan</div>
+    <button class="btn btn-outline btn-xs" onclick="copyOTP()">Copy OTP</button>
+  </div>
+  <div id="otpList"></div>
+</div>
+
+<!-- Empty state -->
+<div id="emptyState" class="card" style="text-align:center;padding:48px;display:none">
+  <div style="font-size:32px;margin-bottom:12px">📭</div>
+  <div style="font-size:15px;font-weight:700;color:var(--ink);margin-bottom:6px">Tidak ada pesan</div>
+  <div style="font-size:13px;color:var(--ink2)">Tidak ada SMS ditemukan untuk parameter ini.</div>
+</div>
+
+<script>
+const today=new Date().toISOString().slice(0,10);
+document.getElementById('fd').value=today;
+let lastOtps=[];
+
+async function autoDetect(){
+  // Load range otomatis dari hari ini, lalu tampilkan nomor-nomor
+  const st=document.getElementById('st');
+  st.innerHTML='<span class="spin"></span> Mendeteksi range...';
+  const d=await apiFetch(`/api/ranges?from=${today}&to=${today}`);
+  if(!d.ranges?.length){st.textContent='Tidak ada range hari ini';return}
+  // Ambil range pertama
+  const rng=d.ranges[0].name;
+  document.getElementById('rng').value=rng;
+  st.textContent=`Range: ${rng} — memuat nomor...`;
+  const d2=await apiFetch(`/api/numbers?range=${encodeURIComponent(rng)}&from=${today}&to=${today}`);
+  if(!d2.numbers?.length){st.textContent='Tidak ada nomor di range ini';return}
+  const quickPick=document.getElementById('quickPick');
+  const quickNums=document.getElementById('quickNums');
+  quickPick.style.display='block';
+  quickNums.innerHTML=d2.numbers.map(n=>`
+    <button onclick="selectNum('${n.number}')"
+      style="padding:6px 14px;border-radius:8px;background:var(--bg2);border:1.5px solid var(--border2);color:var(--ink);font-size:12px;cursor:pointer;font-family:var(--mono);transition:.15s"
+      onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)'">
+      ${escHtml(n.number)}
+    </button>`).join('');
+  st.textContent=`${d2.numbers.length} nomor tersedia`;
+}
+
+function selectNum(num){
+  document.getElementById('num').value=num;
+  loadOTP();
+}
+
+async function loadOTP(){
+  const fd=document.getElementById('fd').value;
+  const rng=document.getElementById('rng').value.trim();
+  const num=document.getElementById('num').value.trim();
+  const st=document.getElementById('st');
+  const card=document.getElementById('resultCard');
+  const empty=document.getElementById('emptyState');
+
+  if(!rng||!num){
+    toast('Range dan nomor wajib diisi','err');return;
+  }
+
+  st.innerHTML='<span class="spin"></span> Mengambil pesan...';
+  card.style.display='none';
+  empty.style.display='none';
+
+  const d=await apiFetch(`/api/sms/otp?number=${encodeURIComponent(num)}&range=${encodeURIComponent(rng)}&from=${fd}&to=${fd}`);
+  st.textContent='';
+
+  if(!d.messages?.length){
+    empty.style.display='block';
+    return;
+  }
+
+  lastOtps=d.messages;
+  card.style.display='block';
+  document.getElementById('resultTitle').textContent=`🔑 Pesan untuk ${num} (${d.total})`;
+
+  const list=document.getElementById('otpList');
+  list.innerHTML=d.messages.map((m,i)=>`
+    <div style="padding:14px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:12px">
+      <div style="width:24px;height:24px;border-radius:7px;background:rgba(124,111,255,.12);border:1px solid rgba(124,111,255,.2);display:flex;align-items:center;justify-content:center;font-size:11px;font-family:var(--mono);color:var(--accent);flex-shrink:0;margin-top:2px">${i+1}</div>
+      <div style="flex:1;min-width:0">
+        <div style="word-break:break-word;font-size:14px;line-height:1.6;margin-bottom:8px">${escHtml(m.message)}</div>
+        ${m.otp_candidates?.length ? `
+        <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+          <span style="font-size:11px;color:var(--ink3);font-weight:600">OTP terdeteksi:</span>
+          ${m.otp_candidates.map(otp=>`
+            <button onclick="navigator.clipboard.writeText('${otp}').then(()=>toast('OTP ${otp} disalin!','ok'))"
+              style="padding:5px 14px;border-radius:8px;background:rgba(0,232,135,.1);border:1.5px solid rgba(0,232,135,.25);color:var(--green);font-family:var(--mono);font-size:15px;font-weight:800;cursor:pointer;letter-spacing:3px;transition:.15s"
+              onmouseover="this.style.background='rgba(0,232,135,.2)'" onmouseout="this.style.background='rgba(0,232,135,.1)'">
+              ${otp}
+            </button>`).join('')}
+        </div>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+function copyOTP(){
+  const allOtps=lastOtps.flatMap(m=>m.otp_candidates||[]);
+  if(!allOtps.length){toast('Tidak ada OTP terdeteksi','err');return}
+  navigator.clipboard.writeText(allOtps[allOtps.length-1])
+    .then(()=>toast(`OTP "${allOtps[allOtps.length-1]}" disalin!`,'ok'));
+}
+
+document.getElementById('num').addEventListener('keydown',e=>{if(e.key==='Enter')loadOTP()});
+</script>
+{% endblock %}

@@ -85,19 +85,26 @@
         <span id="ivas-pill" class="sb-badge" style="display:none"></span>
       </a>
 
-      <div class="sb-sec">SMS</div>
+      <div class="sb-sec">SMS Monitoring</div>
       <a href="/dashboard/sms-live" class="sb-item {% if '/sms-live' in request.path %}active{% endif %}"><span class="ic">⚡</span>SMS Live <span id="live-count" class="sb-badge sb-badge-green" style="display:none">0</span></a>
       <a href="/dashboard/sms-received" class="sb-item {% if '/sms-received' in request.path %}active{% endif %}"><span class="ic">✉</span>SMS Received</a>
+      <a href="/dashboard/otp-received" class="sb-item {% if '/otp-received' in request.path %}active{% endif %}"><span class="ic">🔑</span>OTP / Pesan Masuk</a>
 
-      <div class="sb-sec">Nomor</div>
+      <div class="sb-sec">Numbers</div>
       <a href="/dashboard/numbers" class="sb-item {% if '/numbers' in request.path and '/check' not in request.path %}active{% endif %}"><span class="ic">☎</span>My Numbers</a>
       <a href="/dashboard/check-number" class="sb-item {% if '/check-number' in request.path %}active{% endif %}"><span class="ic">◎</span>Cek Nomor</a>
-      <a href="/dashboard/ranges" class="sb-item {% if '/ranges' in request.path %}active{% endif %}"><span class="ic">◈</span>Ranges</a>
+      <a href="/dashboard/ranges" class="sb-item {% if '/ranges' in request.path %}active{% endif %}"><span class="ic">◈</span>Cari Range</a>
 
-      <div class="sb-sec">Akun</div>
+      <div class="sb-sec">API</div>
       <a href="/dashboard/apikey" class="sb-item {% if '/apikey' in request.path %}active{% endif %}"><span class="ic">⚿</span>API Key</a>
-      <a href="/dashboard/docs" class="sb-item {% if '/docs' in request.path %}active{% endif %}"><span class="ic">📖</span>Dokumentasi</a>
+      <a href="/dashboard/docs" class="sb-item {% if '/docs' in request.path %}active{% endif %}"><span class="ic">📖</span>Dokumentasi API</a>
+      <a href="/dashboard/stats" class="sb-item {% if '/stats' in request.path %}active{% endif %}"><span class="ic">📊</span>Statistik API</a>
+
+      <div class="sb-sec">Account</div>
       <a href="/dashboard/profile" class="sb-item {% if '/profile' in request.path %}active{% endif %}"><span class="ic">◉</span>Profil</a>
+
+      <div class="sb-sec">Support</div>
+      <a href="/dashboard/support" class="sb-item {% if '/support' in request.path %}active{% endif %}"><span class="ic">💬</span>Hubungi Developer</a>
 
       {% if user.role == 'admin' %}
       <div class="sb-sec">Admin</div>
