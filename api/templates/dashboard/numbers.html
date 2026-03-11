@@ -179,6 +179,14 @@
 </div>
 
 <script>
+// ── Local helpers (avoids base.html timing issue with apiFetch) ──
+async function _apiFetch(url, opts={}) {
+  const r = await fetch(url, {headers:{'Content-Type':'application/json'}, ...opts})
+  if (r.status === 401) { window.location.href='/login'; return null }
+  return r.json()
+}
+function _esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+
 let _mTermId='', _mTestNum='';
 let _myData=[], _myPage=1, _myPS=20;
 let _testData=[], _testPage=1, _testPS=20;
@@ -218,7 +226,7 @@ async function loadMy(){
   document.getElementById('my-err').style.display='none';
   body.innerHTML='<tr><td colspan="8" class="iv-empty"><div class="spin" style="margin:0 auto 8px"></div>Memuat...</td></tr>';
   try{
-    const d=await apiFetch(`/api/numbers/my-list?search=${encodeURIComponent(s)}&limit=${lim}`);
+    const d=await _apiFetch(`/api/numbers/my-list?search=${encodeURIComponent(s)}&limit=${lim}`);
     _myData=d.numbers||[];
     document.getElementById('my-total-ivas').textContent=d.total_ivas||_myData.length;
     document.getElementById('my-total').textContent=_myData.length;
@@ -240,14 +248,14 @@ function renderMy(){
   const s=(_myPage-1)*_myPS, e=s+_myPS;
   tbody.innerHTML=_myData.slice(s,e).map(r=>`
 <tr>
-  <td><input type="checkbox" class="cb cb-row" data-id="${escHtml(r.number_id||'')}" onchange="toggleOne(this)"/></td>
-  <td class="num-cell">${escHtml(r.number||'—')}</td>
-  <td class="rng-cell">${escHtml(r.range_name||'—')}</td>
-  <td class="rate-cell">${escHtml(r.rate_a2p||r.rates||'—')}</td>
-  <td class="lim-cell">${escHtml(r.limit_range||'—')}</td>
-  <td class="lim-cell">${escHtml(r.sid_range_limit||'—')}</td>
-  <td class="lim-cell">${escHtml(r.sid_did_limit||'—')}</td>
-  <td><button class="btn-del" onclick="returnNum('${escHtml(r.number_id||'')}','${escHtml(r.number||'')}',this)" ${r.number_id?'':'disabled'}>Return</button></td>
+  <td><input type="checkbox" class="cb cb-row" data-id="${_esc(r.number_id||'')}" onchange="toggleOne(this)"/></td>
+  <td class="num-cell">${_esc(r.number||'—')}</td>
+  <td class="rng-cell">${_esc(r.range_name||'—')}</td>
+  <td class="rate-cell">${_esc(r.rate_a2p||r.rates||'—')}</td>
+  <td class="lim-cell">${_esc(r.limit_range||'—')}</td>
+  <td class="lim-cell">${_esc(r.sid_range_limit||'—')}</td>
+  <td class="lim-cell">${_esc(r.sid_did_limit||'—')}</td>
+  <td><button class="btn-del" onclick="returnNum('${_esc(r.number_id||'')}','${_esc(r.number||'')}',this)" ${r.number_id?'':'disabled'}>Return</button></td>
 </tr>`).join('');
   const tot=_myData.length, pages=Math.ceil(tot/_myPS);
   document.getElementById('my-info').textContent=`Showing ${s+1}–${Math.min(e,tot)} of ${tot}`;
@@ -261,7 +269,7 @@ async function returnNum(tid,num,btn){
   if(!confirm('Return nomor '+num+'?')) return;
   btn.disabled=true; btn.textContent='⏳';
   try{
-    const d=await apiFetch(`/api/numbers/delete?termination_id=${tid}`,{method:'POST'});
+    const d=await _apiFetch(`/api/numbers/delete?termination_id=${tid}`,{method:'POST'});
     if(d.success){ showToast('Nomor berhasil di-return ✅'); loadMy(); }
     else showToast(d.message||'Gagal','error');
   }catch(e){ showToast(e.message,'error'); }
@@ -273,7 +281,7 @@ async function bulkReturn(){
   if(!confirm('Return '+_selIds.size+' nomor?')) return;
   let ok=0,fail=0;
   for(const tid of _selIds){
-    try{ const d=await apiFetch(`/api/numbers/delete?termination_id=${tid}`,{method:'POST'}); d.success?ok++:fail++; }
+    try{ const d=await _apiFetch(`/api/numbers/delete?termination_id=${tid}`,{method:'POST'}); d.success?ok++:fail++; }
     catch{ fail++; }
   }
   showToast('Return: '+ok+' berhasil, '+fail+' gagal');
@@ -291,7 +299,7 @@ async function loadTest(){
   document.getElementById('test-err').style.display='none';
   body.innerHTML='<tr><td colspan="8" class="iv-empty"><div class="spin" style="margin:0 auto 8px"></div>Memuat Test Numbers dari iVAS...</td></tr>';
   try{
-    const d=await apiFetch(`/api/numbers/test-list?search=${encodeURIComponent(s)}&limit=${lim}`);
+    const d=await _apiFetch(`/api/numbers/test-list?search=${encodeURIComponent(s)}&limit=${lim}`);
     _testData=d.numbers||[];
     document.getElementById('test-total-ivas').textContent=d.total_ivas||'?';
     document.getElementById('test-total').textContent=_testData.length;
@@ -313,16 +321,16 @@ function renderTest(){
   const s=(_testPage-1)*_testPS, e=s+_testPS;
   tbody.innerHTML=_testData.slice(s,e).map(r=>`
 <tr>
-  <td class="rng-cell">${escHtml(r.range_name||'—')}</td>
-  <td class="num-cell">${escHtml(r.test_number||'—')}</td>
-  <td class="rate-cell">${escHtml(r.term||'—')}</td>
-  <td class="rate-cell">${escHtml(r.rate_a2p||'0.01200')}</td>
-  <td class="lim-cell">${escHtml(r.limit_range||'200000')}</td>
-  <td class="lim-cell">${escHtml(r.sid_range_limit||'400')}</td>
-  <td class="lim-cell">${escHtml(r.sid_did_limit||'40')}</td>
+  <td class="rng-cell">${_esc(r.range_name||'—')}</td>
+  <td class="num-cell">${_esc(r.test_number||'—')}</td>
+  <td class="rate-cell">${_esc(r.term||'—')}</td>
+  <td class="rate-cell">${_esc(r.rate_a2p||'0.01200')}</td>
+  <td class="lim-cell">${_esc(r.limit_range||'200000')}</td>
+  <td class="lim-cell">${_esc(r.sid_range_limit||'400')}</td>
+  <td class="lim-cell">${_esc(r.sid_did_limit||'40')}</td>
   <td style="display:flex;gap:5px;align-items:center">
     <button class="btn-info" onclick='showDetail(${JSON.stringify(r)})'>Details</button>
-    <button class="btn-add" onclick="addNum('${escHtml(r.number_id||'')}','${escHtml(r.test_number||'')}',this)" ${r.number_id?'':'disabled'}>➕</button>
+    <button class="btn-add" onclick="addNum('${_esc(r.number_id||'')}','${_esc(r.test_number||'')}',this)" ${r.number_id?'':'disabled'}>➕</button>
   </td>
 </tr>`).join('');
   const tot=_testData.length, pages=Math.ceil(tot/_testPS);
@@ -336,7 +344,7 @@ async function addNum(tid,num,btn){
   if(!tid) return showToast('Termination ID tidak tersedia','error');
   btn.disabled=true; btn.textContent='⏳';
   try{
-    const d=await apiFetch(`/api/numbers/add?termination_id=${tid}`,{method:'POST'});
+    const d=await _apiFetch(`/api/numbers/add?termination_id=${tid}`,{method:'POST'});
     if(d.success){ showToast(num+' berhasil ditambahkan ✅'); btn.textContent='✅'; }
     else{ showToast(d.message||'Gagal','error'); btn.disabled=false; btn.textContent='➕'; }
   }catch(e){ showToast(e.message,'error'); btn.disabled=false; btn.textContent='➕'; }
@@ -364,7 +372,7 @@ async function modalAddNumber(){
   if(!_mTermId) return;
   btn.disabled=true; btn.textContent='⏳ Adding...';
   try{
-    const d=await apiFetch(`/api/numbers/add?termination_id=${_mTermId}`,{method:'POST'});
+    const d=await _apiFetch(`/api/numbers/add?termination_id=${_mTermId}`,{method:'POST'});
     if(d.success){ showToast(_mTestNum+' berhasil ditambahkan ✅'); btn.textContent='✅ Added!'; setTimeout(closeModal,1200); }
     else{ showToast(d.message||'Gagal','error'); btn.disabled=false; btn.textContent='➕ Add Number'; }
   }catch(e){ showToast(e.message,'error'); btn.disabled=false; btn.textContent='➕ Add Number'; }

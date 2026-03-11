@@ -243,5 +243,18 @@ startStream()
 
 // Auto refresh data tiap 30 detik (backup)
 setInterval(fetchNow, 30000)
+
+// BUGFIX: cleanup SSE saat pindah halaman — mencegah page lock
+window.addEventListener('beforeunload', () => {
+  if (evtSrc) { try { evtSrc.close() } catch(e){} evtSrc = null }
+})
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && evtSrc) {
+    try { evtSrc.close() } catch(e){}
+    evtSrc = null
+  } else if (!document.hidden && !evtSrc) {
+    startStream()
+  }
+})
 </script>
 {% endblock %}

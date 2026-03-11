@@ -4,40 +4,62 @@
 <style>
 .iv-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden}
 .iv-banner{background:#f59e0b;padding:10px 18px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#fff}
-.live-wrap{display:grid;grid-template-columns:1fr 200px;min-height:420px}
-.live-left{border-right:1px solid var(--border);overflow-x:auto}
-.live-right{padding:14px;overflow-y:auto;max-height:620px}
-.ltbl{width:100%;border-collapse:collapse}
-.ltbl thead th{padding:8px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);background:var(--bg2);border-bottom:2px solid var(--border);white-space:nowrap}
-.ltbl tbody td{padding:9px 14px;border-bottom:1px solid var(--border);font-size:12.5px;vertical-align:middle}
-.ltbl tbody tr:hover td{background:rgba(245,158,11,.05)}
-@keyframes rowflash{0%{background:rgba(245,158,11,.22)}100%{background:transparent}}
-.row-new{animation:rowflash .8s ease-out}
-.ctrl-bar{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap}
-.ctrl-inp{padding:6px 11px;border:1px solid var(--border2);border-radius:7px;background:var(--card);color:var(--ink);font-size:12px;width:160px}
-.ctrl-btn{border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;transition:.15s}
-.ctrl-btn.primary{background:#f59e0b;color:#fff}.ctrl-btn.primary:hover{opacity:.85}
-.ctrl-btn.gray{background:var(--card2);color:var(--ink2);border:1px solid var(--border2)}
-.ctrl-btn.red{background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.2)}.ctrl-btn.red:hover{background:#ef4444;color:#fff}
 .stat-bar{display:flex;align-items:center;gap:14px;padding:9px 14px;border-bottom:1px solid var(--border);background:var(--bg2);flex-wrap:wrap}
 .stat-item{font-size:12px;color:var(--ink2)}.stat-item b{color:var(--ink);font-family:var(--mono)}
-.dot-live{width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;box-shadow:0 0 6px #22c55e;animation:pulse 1.5s infinite}
+.ctrl-bar{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap;background:var(--bg2)}
+.ctrl-inp{padding:6px 11px;border:1px solid var(--border2);border-radius:7px;background:var(--card);color:var(--ink);font-size:12px;flex:1;min-width:130px;max-width:200px}
+.ctrl-inp:focus{border-color:#f59e0b;outline:none}
+.ctrl-btn{border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;transition:.15s}
+.ctrl-btn.gray{background:var(--card2);color:var(--ink2);border:1px solid var(--border2)}.ctrl-btn.gray:hover{background:var(--border)}
+.ctrl-btn.red{background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.2)}.ctrl-btn.red:hover{background:#ef4444;color:#fff}
+
+/* ── Split layout ── */
+.live-wrap{display:grid;grid-template-columns:1fr 220px}
+
+/* ── SMS table (left) ── */
+.live-left{overflow-x:auto;-webkit-overflow-scrolling:touch;border-right:1px solid var(--border)}
+.ltbl{width:100%;border-collapse:collapse;min-width:480px}
+.ltbl thead th{padding:8px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);background:var(--bg2);border-bottom:2px solid var(--border);white-space:nowrap}
+.ltbl tbody td{padding:9px 12px;border-bottom:1px solid var(--border);font-size:12.5px;vertical-align:middle}
+.ltbl tbody tr:hover td{background:rgba(245,158,11,.05)}
+@keyframes rowflash{0%{background:rgba(245,158,11,.22)}100%{background:transparent}}
+.row-new{animation:rowflash .9s ease-out}
+
+/* ── Right panel (iVAS-style tree) ── */
+.live-right{padding:12px 10px;overflow-y:auto;max-height:540px;background:var(--bg2);min-width:180px}
+.rng-head{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--ink3);margin-bottom:8px;padding:2px 4px}
+.rng-group{margin-bottom:6px;border-radius:8px;overflow:hidden;border:1px solid var(--border)}
+.rng-group-hd{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:var(--card2);cursor:pointer;user-select:none;font-size:12px;font-weight:600;color:var(--ink)}
+.rng-group-hd:hover{background:var(--border)}
+.rng-sms-count{background:#f59e0b;color:#fff;font-size:10px;font-weight:800;padding:1px 7px;border-radius:10px;font-family:var(--mono)}
+.rng-nums{display:none;background:var(--bg)}
+.rng-nums.open{display:block}
+.rng-num-item{padding:5px 10px 5px 16px;font-size:11.5px;font-family:var(--mono);color:var(--ink3);border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.rng-num-item .sms-cnt{background:rgba(34,197,94,.15);color:#22c55e;font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px}
+.sms-total-badge{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:6px 10px;margin-bottom:10px;text-align:center}
+.sms-total-badge .num{font-size:22px;font-weight:800;color:#f59e0b;font-family:var(--mono);line-height:1}
+.sms-total-badge .lbl{font-size:10px;color:var(--ink3);margin-top:2px}
+
+/* ── Badges ── */
+.dot-live{width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;animation:pulse 1.5s infinite;box-shadow:0 0 5px #22c55e}
 .dot-dead{width:8px;height:8px;border-radius:50%;background:#ef4444;display:inline-block}
 .dot-wait{width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;animation:pulse 1.5s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-.ws-badge{font-size:11px;font-weight:700;padding:2px 9px;border-radius:8px;margin-left:auto}
-.ws-badge.ok{background:rgba(34,197,94,.13);color:#22c55e}
-.ws-badge.warn{background:rgba(245,158,11,.13);color:#f59e0b}
-.ws-badge.err{background:rgba(239,68,68,.13);color:#ef4444}
-.sid-pill{background:#f59e0b;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:5px;display:inline-block;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ws-badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;margin-left:auto}
+.ws-badge.ok{background:rgba(34,197,94,.13);color:#22c55e;border:1px solid rgba(34,197,94,.2)}
+.ws-badge.warn{background:rgba(245,158,11,.13);color:#f59e0b;border:1px solid rgba(245,158,11,.2)}
+.ws-badge.err{background:rgba(239,68,68,.13);color:#ef4444;border:1px solid rgba(239,68,68,.2)}
+.sid-pill{background:#f59e0b;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:5px;display:inline-block;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .paid-b{background:rgba(34,197,94,.13);color:#22c55e;font-size:10px;font-weight:700;padding:1px 7px;border-radius:5px}
 .unpaid-b{background:rgba(239,68,68,.13);color:#ef4444;font-size:10px;font-weight:700;padding:1px 7px;border-radius:5px}
 .num-cell{font-family:var(--mono);font-size:12px;color:var(--ink2)}
-.rng-item{padding:8px 10px;border-radius:8px;background:var(--card2);border:1px solid var(--border);margin-bottom:6px;font-size:12px}
-.rng-item-name{font-weight:600;color:var(--ink)}
-.rng-item-cnt{font-size:11px;color:var(--ink3);font-family:var(--mono);margin-top:2px}
-.iv-empty{text-align:center;padding:44px;color:var(--ink3);font-size:13px}
-@media(max-width:640px){.live-wrap{grid-template-columns:1fr}.live-right{border-top:1px solid var(--border)}}
+.iv-empty{text-align:center;padding:40px;color:var(--ink3);font-size:13px}
+
+@media(max-width:640px){
+  .live-wrap{grid-template-columns:1fr}
+  .live-right{border-top:1px solid var(--border);max-height:280px}
+  .ctrl-inp{max-width:100%}
+}
 </style>
 
 <div class="page-hdr">
@@ -47,15 +69,16 @@
 
 <div class="iv-card">
   <div class="iv-banner">
-    <span>⚡</span><span>Live SMS — My Numbers</span>
-    <span id="ws-badge" class="ws-badge err" style="margin-left:auto">Connecting...</span>
+    <span>⚡</span>
+    <span>Live SMS — My Numbers</span>
+    <span id="ws-badge" class="ws-badge warn">● Connecting...</span>
   </div>
 
   <div class="stat-bar">
-    <div class="stat-item"><span id="ws-dot" class="dot-dead"></span> <b id="ws-state">Offline</b></div>
+    <div class="stat-item"><span id="ws-dot" class="dot-wait"></span> <b id="ws-state">Connecting</b></div>
     <div class="stat-item">Total: <b id="sms-total">0</b></div>
     <div class="stat-item">Hari ini: <b id="sms-today">0</b></div>
-    <div class="stat-item">Sumber: <b id="sms-source">—</b></div>
+    <div class="stat-item">Sumber: <b id="sms-source">WebSocket Stream</b></div>
   </div>
 
   <div class="ctrl-bar">
@@ -63,10 +86,11 @@
     <input class="ctrl-inp" id="filter-num" placeholder="Filter nomor..." oninput="applyFilter()"/>
     <button class="ctrl-btn gray" onclick="clearFilters()">✕ Clear</button>
     <button class="ctrl-btn red" onclick="clearCache()">🗑 Clear</button>
-    <button class="ctrl-btn gray" onclick="fetchNow()" style="margin-left:auto">↻ Refresh</button>
+    <button class="ctrl-btn gray" style="margin-left:auto" onclick="fetchNow()">↻ Refresh</button>
   </div>
 
   <div class="live-wrap">
+    <!-- LEFT: SMS table -->
     <div class="live-left">
       <table class="ltbl">
         <thead>
@@ -76,87 +100,108 @@
           </tr>
         </thead>
         <tbody id="live-tbody">
-          <tr><td colspan="6" class="iv-empty"><div class="spin" style="margin:0 auto 8px"></div><div>Memuat SMS live...</div></td></tr>
+          <tr><td colspan="6" class="iv-empty">
+            <div class="spin" style="margin:0 auto 8px"></div>
+            <div>Memuat SMS live...</div>
+          </td></tr>
         </tbody>
       </table>
     </div>
 
+    <!-- RIGHT: iVAS-style number tree -->
     <div class="live-right">
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);margin-bottom:10px">My Numbers (200)</div>
-      <div id="my-numbers-list"></div>
+      <div class="sms-total-badge">
+        <div class="num" id="right-total">0</div>
+        <div class="lbl">SMS Today</div>
+      </div>
+      <div class="rng-head">My Numbers</div>
+      <div id="range-tree">
+        <div style="font-size:12px;color:var(--ink3);padding:8px 4px">Memuat numbers...</div>
+      </div>
     </div>
   </div>
 </div>
 
 <script>
-let allSms = [], evtSrc = null, myNumbers = {}
+// ── Local helpers (fix: apiFetch may load after this script) ──
+async function _fetch(url, opts={}) {
+  const r = await fetch(url, {headers:{'Content-Type':'application/json'}, ...opts})
+  if (r.status === 401) { window.location.href='/login'; return null }
+  return r.json()
+}
+async function _post(url, data={}) {
+  const r = await fetch(url, {method:'POST', body:JSON.stringify(data), headers:{'Content-Type':'application/json'}})
+  if (r.status === 401) { window.location.href='/login'; return null }
+  return r.json()
+}
+function _esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+
+// ── State ──
+let allSms = [], evtSrc = null
 let todayCount = 0
+let filterSid = '', filterNum = ''
+// Tree: {rangeName: {smsCount:0, nums: {number: smsCount}}}
+let rangeTree = {}
 
 function timeStr(iso) {
   if (!iso) return '—'
-  try { return new Date(iso).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',second:'2-digit'}) }
-  catch(e) { return iso.slice(11,19)||'—' }
-}
-function escH(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
-
-function applyFilter() {
-  const sid = document.getElementById('filter-sid').value.toLowerCase()
-  const num = document.getElementById('filter-num').value.toLowerCase()
-  const filtered = allSms.filter(s =>
-    (!sid || (s.sid||s.originator||'').toLowerCase().includes(sid)||(s.message||'').toLowerCase().includes(sid)) &&
-    (!num || (s.number||'').includes(num)||(s.recipient||'').includes(num))
-  )
-  renderTable(filtered)
+  try {
+    const d = new Date(iso)
+    return d.toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit', second:'2-digit'})
+  } catch { return iso.slice(11,19)||'—' }
 }
 
-function clearFilters() {
-  document.getElementById('filter-sid').value = ''
-  document.getElementById('filter-num').value = ''
-  renderTable(allSms)
+// ── Status indicator ──
+function setWsStatus(state, label) {
+  const dot   = document.getElementById('ws-dot')
+  const txt   = document.getElementById('ws-state')
+  const badge = document.getElementById('ws-badge')
+  dot.className   = state==='ok' ? 'dot-live' : state==='warn' ? 'dot-wait' : 'dot-dead'
+  txt.textContent = label || state
+  badge.className = 'ws-badge ' + (state==='ok'?'ok':'warn')
+  badge.textContent = state==='ok' ? '●LIVE' : '● ' + (label||'...')
 }
 
-function renderTable(rows) {
-  const tb = document.getElementById('live-tbody')
-  if (!rows.length) {
-    tb.innerHTML = '<tr><td colspan="6" class="iv-empty">Belum ada SMS masuk ke nomor kamu</td></tr>'
+// ── Render SMS table ──
+function renderTable(items) {
+  const tbody = document.getElementById('live-tbody')
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="iv-empty">Belum ada SMS. Menunggu...</td></tr>'
     return
   }
-  tb.innerHTML = rows.slice(0,300).map(s => `
-    <tr>
-      <td style="font-size:11px;font-weight:600;color:var(--ink2)">${escH(s.range||'—')}</td>
-      <td class="num-cell">${escH(s.number||s.recipient||'—')}</td>
-      <td><span class="sid-pill" title="${escH(s.originator||s.sid||'')}">${escH((s.originator||s.sid||'—').slice(0,18))}</span></td>
-      <td style="max-width:240px;font-size:12px">${escH(s.message||'—')}</td>
-      <td>${s.paid==='Paid'?'<span class="paid-b">Paid</span>':'<span class="unpaid-b">Unpaid</span>'}</td>
-      <td style="font-size:11px;color:var(--ink3);white-space:nowrap;font-family:var(--mono)">${timeStr(s.received_at)}</td>
-    </tr>`).join('')
+  tbody.innerHTML = items.slice(0, 200).map(s => `
+<tr>
+  <td style="font-size:11px;font-weight:600;color:var(--ink2);white-space:nowrap">${_esc(s.range||'—')}</td>
+  <td class="num-cell">${_esc(s.number||s.recipient||'—')}</td>
+  <td><span class="sid-pill" title="${_esc(s.originator||s.sid||'')}">${_esc((s.originator||s.sid||'—').slice(0,18))}</span></td>
+  <td style="max-width:220px;font-size:12px;line-height:1.4">${_esc(s.message||'—')}</td>
+  <td>${s.paid==='Paid'?'<span class="paid-b">Paid</span>':s.paid==='Unpaid'?'<span class="unpaid-b">Unpaid</span>':'—'}</td>
+  <td style="font-family:var(--mono);font-size:11px;color:var(--ink3);white-space:nowrap">${timeStr(s.received_at)}</td>
+</tr>`).join('')
 }
 
-function setWsStatus(state, label) {
-  const dot = document.getElementById('ws-dot')
-  const st  = document.getElementById('ws-state')
-  const badge = document.getElementById('ws-badge')
-  if (state==='ok') {
-    dot.className='dot-live'; st.textContent='Live'
-    badge.className='ws-badge ok'; badge.textContent='● LIVE'
-  } else if (state==='warn') {
-    dot.className='dot-wait'; st.textContent=label||'Connecting'
-    badge.className='ws-badge warn'; badge.textContent=label||'...'
-  } else {
-    dot.className='dot-dead'; st.textContent=label||'Offline'
-    badge.className='ws-badge err'; badge.textContent=label||'Offline'
-  }
-}
-
-function addSms(s, animate=false) {
+// ── Add one SMS and animate ──
+function addSms(s, animate) {
   const key = (s.number||s.recipient||'')+'|'+(s.message||'').slice(0,30)+'|'+(s.received_at||'').slice(0,19)
-  if (allSms.find(x=>(x.number||x.recipient||'')+'|'+(x.message||'').slice(0,30)+'|'+(x.received_at||'').slice(0,19)===key)) return
+  if (allSms.find(x => (x.number||x.recipient||'')+'|'+(x.message||'').slice(0,30)+'|'+(x.received_at||'').slice(0,19) === key)) return
   allSms.unshift(s)
-  if (allSms.length>500) allSms.pop()
+  if (allSms.length > 500) allSms.pop()
+
   const today = new Date().toDateString()
-  if (s.received_at && new Date(s.received_at).toDateString()===today) todayCount++
+  if (s.received_at && new Date(s.received_at).toDateString() === today) todayCount++
   document.getElementById('sms-total').textContent = allSms.length
   document.getElementById('sms-today').textContent = todayCount
+  document.getElementById('right-total').textContent = todayCount
+
+  // Update range tree
+  const rng = s.range || '?'
+  const num = s.number || s.recipient || '?'
+  if (!rangeTree[rng]) rangeTree[rng] = {smsCount:0, nums:{}}
+  rangeTree[rng].smsCount++
+  if (!rangeTree[rng].nums[num]) rangeTree[rng].nums[num] = 0
+  rangeTree[rng].nums[num]++
+  renderRangeTree()
+
   applyFilter()
   if (animate) {
     const tb = document.getElementById('live-tbody')
@@ -165,86 +210,146 @@ function addSms(s, animate=false) {
   }
 }
 
-async function clearCache() {
-  await apiJson('/api/sms/live/clear', {})
-  allSms = []; todayCount = 0
-  document.getElementById('sms-total').textContent = 0
-  document.getElementById('sms-today').textContent = 0
-  renderTable([])
-  toast('Cache dikosongkan','ok')
+// ── Render right-side range tree (iVAS style) ──
+function renderRangeTree() {
+  const container = document.getElementById('range-tree')
+  if (!Object.keys(rangeTree).length) {
+    container.innerHTML = '<div style="font-size:12px;color:var(--ink3);padding:8px 4px">Belum ada SMS</div>'
+    return
+  }
+  container.innerHTML = Object.entries(rangeTree)
+    .sort((a,b) => b[1].smsCount - a[1].smsCount)
+    .map(([rng, data]) => {
+      const numEntries = Object.entries(data.nums).slice(0, 50)
+      return `
+<div class="rng-group">
+  <div class="rng-group-hd" onclick="toggleRngGroup(this)">
+    <span>${_esc(rng)}</span>
+    <span class="rng-sms-count">${data.smsCount} SMS</span>
+  </div>
+  <div class="rng-nums">
+    ${numEntries.map(([num, cnt]) =>
+      `<div class="rng-num-item">
+        <span>${_esc(num)}</span>
+        ${cnt > 0 ? `<span class="sms-cnt">${cnt}</span>` : ''}
+      </div>`
+    ).join('')}
+    ${Object.keys(data.nums).length > 50 ? `<div class="rng-num-item" style="color:var(--ink3)">+${Object.keys(data.nums).length-50} lainnya</div>` : ''}
+  </div>
+</div>`
+    }).join('')
 }
 
+function toggleRngGroup(hd) {
+  const nums = hd.nextElementSibling
+  nums.classList.toggle('open')
+}
+
+// ── Load My Numbers untuk tree init ──
+async function loadMyNumbers() {
+  try {
+    const d = await _fetch('/api/numbers/my-list?limit=200')
+    if (!d || d.status !== 'ok') return
+    const nums = d.numbers || []
+    if (!nums.length) return
+    // Pre-populate tree dengan nomor (belum ada SMS count)
+    nums.forEach(n => {
+      const rng = n.range_name || 'Unknown'
+      const num = n.number || ''
+      if (!rangeTree[rng]) rangeTree[rng] = {smsCount:0, nums:{}}
+      if (!rangeTree[rng].nums[num]) rangeTree[rng].nums[num] = 0
+    })
+    document.getElementById('right-total').textContent = todayCount || '0'
+    renderRangeTree()
+    // Auto-expand semua group
+    document.querySelectorAll('.rng-nums').forEach(el => el.classList.add('open'))
+  } catch(e) { console.warn('loadMyNumbers error:', e) }
+}
+
+// ── Filter ──
+function applyFilter() {
+  filterSid = document.getElementById('filter-sid').value.trim().toLowerCase()
+  filterNum = document.getElementById('filter-num').value.trim().toLowerCase()
+  let items = allSms
+  if (filterSid) items = items.filter(s => (s.originator||s.sid||'').toLowerCase().includes(filterSid) || (s.message||'').toLowerCase().includes(filterSid))
+  if (filterNum) items = items.filter(s => (s.number||s.recipient||'').toLowerCase().includes(filterNum))
+  renderTable(items)
+}
+
+function clearFilters() {
+  document.getElementById('filter-sid').value = ''
+  document.getElementById('filter-num').value = ''
+  filterSid = ''; filterNum = ''
+  applyFilter()
+}
+
+async function clearCache() {
+  await _post('/api/sms/live/clear', {})
+  allSms = []; todayCount = 0; rangeTree = {}
+  document.getElementById('sms-total').textContent = 0
+  document.getElementById('sms-today').textContent = 0
+  document.getElementById('right-total').textContent = 0
+  renderTable([]); renderRangeTree()
+  if (typeof toast === 'function') toast('Cache dikosongkan', 'ok')
+}
+
+// ── SSE Stream ──
 function startStream() {
   if (evtSrc) { try { evtSrc.close() } catch(e){} }
-  setWsStatus('warn','Connecting...')
+  setWsStatus('warn', 'Connecting...')
   evtSrc = new EventSource('/api/sms/live/stream')
   evtSrc.onopen = () => {
-    setWsStatus('ok')
+    setWsStatus('ok', 'Live')
     document.getElementById('sms-source').textContent = 'WebSocket Stream'
   }
   evtSrc.onmessage = (e) => {
     try {
       const d = JSON.parse(e.data)
-      if (d.type === 'connected') { setWsStatus('ok'); return }
+      if (d.type === 'connected') { setWsStatus('ok', 'Live'); return }
       addSms(d, true)
     } catch(err) {}
   }
   evtSrc.onerror = () => {
-    setWsStatus('warn','Reconnecting...')
-    evtSrc.close()
-    setTimeout(startStream, 3000)
+    setWsStatus('warn', 'Reconnecting...')
+    evtSrc.close(); evtSrc = null
+    setTimeout(startStream, 4000)
   }
 }
 
+// ── Fetch (polling fallback) ──
 async function fetchNow() {
   try {
-    const d = await apiFetch('/api/sms/live?limit=200')
-    if (!d || d.status !== 'ok') {
-      // Cek apakah iVAS belum login
-      if (d && d.ivas_expired) {
-        document.getElementById('live-tbody').innerHTML = `<tr><td colspan="6" class="iv-empty" style="color:var(--yellow)">⚠️ iVAS belum login. Pergi ke <a href="/dashboard/ivas-login" style="color:var(--accent)">Login iVAS</a></td></tr>`
-      }
+    const d = await _fetch('/api/sms/live?limit=200')
+    if (!d) return
+    if (d.ivas_expired) {
+      document.getElementById('live-tbody').innerHTML = `<tr><td colspan="6" class="iv-empty" style="color:var(--yellow)">⚠️ iVAS belum login. <a href="/dashboard/ivas-login" style="color:var(--accent)">Login iVAS</a></td></tr>`
       return
     }
-    // Merge dengan data yang ada
-    let added = 0
-    ;(d.sms||[]).forEach(s => {
-      const key = (s.number||s.recipient||'')+'|'+(s.message||'').slice(0,30)+'|'+(s.received_at||'').slice(0,19)
-      if (!allSms.find(x=>(x.number||x.recipient||'')+'|'+(x.message||'').slice(0,30)+'|'+(x.received_at||'').slice(0,19)===key)) {
-        allSms.push(s); added++
-        const today = new Date().toDateString()
-        if (s.received_at && new Date(s.received_at).toDateString()===today) todayCount++
-      }
-    })
-    allSms.sort((a,b)=>(b.received_at||'').localeCompare(a.received_at||''))
-    document.getElementById('sms-total').textContent = allSms.length
-    document.getElementById('sms-today').textContent = todayCount
-    document.getElementById('sms-source').textContent = d.source||'cache'
-    if (allSms.length > 0) setWsStatus('ok')
+    if (d.status !== 'ok') return
+    ;(d.sms||[]).forEach(s => addSms(s, false))
+    if (d.source) document.getElementById('sms-source').textContent = d.source
+    if ((d.sms||[]).length > 0) setWsStatus('ok', 'Live')
     applyFilter()
   } catch(e) { console.warn('fetchNow error:', e) }
 }
 
-async function loadMyNumbers() {
-  try {
-    const d = await apiFetch('/api/numbers/my-list?limit=200')
-    if (!d || d.status !== 'ok') return
-    const box = document.getElementById('my-numbers-list')
-    const nums = d.numbers||[]
-    if (!nums.length) { box.innerHTML = '<div style="font-size:12px;color:var(--ink3)">Belum ada nomor</div>'; return }
-    // Group by range
-    const byRange = {}
-    nums.forEach(n => { const r = n.range_name||'Unknown'; if(!byRange[r]) byRange[r]=[]; byRange[r].push(n) })
-    box.innerHTML = Object.entries(byRange).map(([rng,ns]) =>
-      `<div class="rng-item"><div class="rng-item-name">${escH(rng)}</div><div class="rng-item-cnt">${ns.length} nomor</div></div>`
-    ).join('')
-  } catch(e) {}
-}
-
-// Init
+// ── Init ──
+loadMyNumbers()
 fetchNow()
 startStream()
-loadMyNumbers()
 setInterval(fetchNow, 15000)
+
+// BUGFIX: cleanup SSE saat navigasi
+window.addEventListener('beforeunload', () => {
+  if (evtSrc) { try { evtSrc.close() } catch(e){} evtSrc = null }
+})
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && evtSrc) {
+    try { evtSrc.close() } catch(e){}
+    evtSrc = null
+  } else if (!document.hidden && !evtSrc) {
+    startStream()
+  }
+})
 </script>
 {% endblock %}

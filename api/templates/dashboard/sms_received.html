@@ -2,79 +2,66 @@
 {% block page_title %}SMS Received{% endblock %}
 {% block content %}
 <style>
-/* ── Card ── */
 .iv-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:0}
 .iv-banner{background:#f59e0b;padding:10px 18px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#fff}
 
-/* ── Stats header (mirip iVAS) ── */
+/* Stats header */
 .iv-stats{display:grid;grid-template-columns:repeat(4,1fr)}
-.iv-st{padding:14px 10px;text-align:center;border-bottom:1px solid var(--border)}
+.iv-st{padding:14px 8px;text-align:center;border-bottom:1px solid var(--border)}
 .iv-st+.iv-st{border-left:1px solid var(--border)}
-.iv-st-num{font-size:28px;font-weight:800;font-family:var(--mono);line-height:1}
-.iv-st-num.org{color:#f59e0b}.iv-st-num.grn{color:#22c55e}.iv-st-num.red{color:#ef4444}.iv-st-num.blu{color:#3b82f6}
+.iv-st-num{font-size:26px;font-weight:800;font-family:var(--mono);line-height:1}
+.iv-st-num.org{color:#f59e0b}.iv-st-num.grn{color:#22c55e}
+.iv-st-num.red{color:#ef4444}.iv-st-num.blu{color:#3b82f6}
 .iv-st-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);margin-top:3px;font-weight:600}
 
-/* ── Date row ── */
-.iv-dates{display:flex;align-items:center;gap:10px;padding:12px 18px;border-bottom:1px solid var(--border);background:var(--bg2);flex-wrap:wrap}
+/* Date row */
+.iv-dates{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--border);background:var(--bg2);flex-wrap:wrap}
 .iv-dates label{font-size:12px;font-weight:600;color:var(--ink2)}
 .iv-dinp{padding:6px 11px;border:1px solid var(--border2);border-radius:7px;background:var(--card);color:var(--ink);font-size:13px;font-family:var(--mono)}
 .iv-dinp:focus{border-color:#f59e0b;outline:none}
-.iv-btn{background:#f59e0b;color:#fff;border:none;border-radius:8px;padding:7px 20px;font-size:13px;font-weight:700;cursor:pointer;transition:.15s;display:flex;align-items:center;gap:6px}
+.iv-btn{background:#f59e0b;color:#fff;border:none;border-radius:8px;padding:7px 18px;font-size:13px;font-weight:700;cursor:pointer;transition:.15s;display:flex;align-items:center;gap:6px}
 .iv-btn:hover{background:#d97706}.iv-btn:disabled{opacity:.5;cursor:not-allowed}
 
-/* ── Main table ── */
-.iv-tbl{width:100%;border-collapse:collapse;min-width:500px}
-.iv-tbl thead th{padding:8px 16px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);background:var(--bg2);border-bottom:2px solid var(--border);white-space:nowrap}
-.iv-tbl thead th:first-child{text-align:left}
+/* Main table */
+.iv-tbl{width:100%;border-collapse:collapse;min-width:480px}
+.iv-tbl thead th{padding:8px 14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);background:var(--bg2);border-bottom:2px solid var(--border);white-space:nowrap;text-align:left}
 .iv-tbl thead th:not(:first-child){text-align:right}
 
-/* ── Range rows ── */
-.iv-rng{cursor:pointer;transition:background .12s}
-.iv-rng:hover{background:rgba(245,158,11,.05)}
-.iv-rng td{padding:11px 16px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600}
-.iv-rng td:first-child{display:flex;align-items:center;gap:8px}
+/* Range rows */
+.iv-rng{cursor:pointer}
+.iv-rng:hover td{background:rgba(245,158,11,.04)}
+.iv-rng td{padding:11px 14px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600}
+.iv-rng td:first-child{display:flex;align-items:center;gap:7px}
 .iv-arr{font-size:10px;color:var(--ink3);transition:transform .2s;flex-shrink:0}
 .iv-arr.open{transform:rotate(90deg)}
+.cnt-cell{text-align:right;padding:11px 14px;font-family:var(--mono);font-weight:700;border-bottom:1px solid var(--border)}
+.cnt-org{color:#f59e0b}.cnt-grn{color:#22c55e}.cnt-red{color:#ef4444}.cnt-blu{color:#3b82f6}
 
-/* ── Count/Paid/Unpaid/Revenue cells ── */
-.cnt-cell{text-align:right;padding:11px 16px;font-family:var(--mono);font-weight:700}
-.cnt-grn{color:#22c55e}.cnt-red{color:#ef4444}.cnt-org{color:#f59e0b}.cnt-rev{color:#22c55e}
-
-/* ── Sub-table (number detail) ── */
+/* Number sub rows */
 .iv-sub-wrap td{padding:0;background:var(--bg)}
-.iv-sub-tbl{width:100%;border-collapse:collapse}
-.iv-sub-tbl thead th{padding:7px 12px 7px 36px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);border-bottom:1px solid var(--border2);background:var(--bg);white-space:nowrap}
-.iv-sub-tbl thead th.n{padding-left:12px}
-.iv-sub-tbl tbody td{padding:9px 12px 9px 36px;font-size:12.5px;border-bottom:1px solid var(--border2);color:var(--ink)}
-.iv-sub-tbl tbody td.n{padding-left:12px}
-.iv-sub-tbl tbody tr:last-child td{border-bottom:none}
-.iv-num-row{cursor:pointer;transition:background .1s}
-.iv-num-row:hover td{background:rgba(245,158,11,.04)}
+.sub-tbl{width:100%;border-collapse:collapse}
+.sub-tbl thead th{padding:7px 14px 7px 32px;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--ink3);border-bottom:1px solid var(--border2);background:var(--bg)}
+.sub-tbl tbody td{padding:9px 14px 9px 32px;font-size:12.5px;border-bottom:1px solid var(--border2);color:var(--ink)}
+.sub-tbl tbody tr:last-child td{border-bottom:none}
+.iv-num-row{cursor:pointer}.iv-num-row:hover td{background:rgba(245,158,11,.04)}
 
-/* ── SMS detail ── */
+/* SMS detail sub-sub rows */
 .iv-sms-wrap td{padding:0;background:var(--bg2)}
-.iv-sms-tbl{width:100%;border-collapse:collapse}
-.iv-sms-tbl th{padding:6px 12px 6px 72px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);border-bottom:1px solid var(--border2)}
-.iv-sms-tbl th.n{padding-left:12px}
-.iv-sms-tbl td{padding:8px 12px 8px 72px;font-size:12px;border-bottom:1px solid var(--border2);color:var(--ink)}
-.iv-sms-tbl td.n{padding-left:12px}
-.iv-sms-tbl tr:last-child td{border-bottom:none}
+.sms-tbl{width:100%;border-collapse:collapse}
+.sms-tbl th{padding:6px 14px 6px 52px;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--ink3);border-bottom:1px solid var(--border2)}
+.sms-tbl td{padding:8px 14px 8px 52px;font-size:12px;border-bottom:1px solid var(--border2);color:var(--ink)}
+.sms-tbl tr:last-child td{border-bottom:none}
 
-/* ── Badges ── */
-.sid-pill{background:#f59e0b;color:#fff;font-size:10px;font-weight:700;padding:2px 9px;border-radius:6px;display:inline-block;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Badges */
 .bc{background:rgba(245,158,11,.13);color:#f59e0b;font-size:11px;font-weight:700;padding:1px 8px;border-radius:9px;font-family:var(--mono)}
-.bp{background:rgba(34,197,94,.13);color:#22c55e;font-size:11px;font-weight:700;padding:1px 8px;border-radius:9px;font-family:var(--mono)}
-.bu{background:rgba(239,68,68,.13);color:#ef4444;font-size:11px;font-weight:700;padding:1px 8px;border-radius:9px;font-family:var(--mono)}
-.brev{font-family:var(--mono);font-size:12px;font-weight:700;color:#22c55e}
-
-/* ── Loading / empty ── */
 .iv-empty{text-align:center;padding:44px;color:var(--ink3);font-size:13px}
-.iv-load{text-align:center;padding:20px;color:var(--ink3);font-size:13px}
+.iv-load{text-align:center;padding:18px;color:var(--ink3);font-size:13px}
 .tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
 
-@media(max-width:580px){
+@media(max-width:560px){
   .iv-stats{grid-template-columns:repeat(2,1fr)}
-  .iv-dates{gap:7px}
+  .iv-dates{gap:6px}
+  .iv-dates label{display:none}
 }
 </style>
 
@@ -85,12 +72,11 @@
 
 <div class="iv-card">
   <div class="iv-banner">
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
     SMS Received
     <span id="tsLbl" style="margin-left:auto;font-size:11px;font-weight:400;opacity:.85"></span>
   </div>
 
-  <!-- Stats (mirip iVAS: TOTAL SMS / PAID / UNPAID / REVENUE) -->
   <div class="iv-stats">
     <div class="iv-st"><div class="iv-st-num org" id="stTot">0</div><div class="iv-st-lbl">Total SMS</div></div>
     <div class="iv-st"><div class="iv-st-num grn" id="stPaid">0</div><div class="iv-st-lbl">Paid</div></div>
@@ -98,7 +84,6 @@
     <div class="iv-st"><div class="iv-st-num blu" id="stRev">$0.00</div><div class="iv-st-lbl">Revenue</div></div>
   </div>
 
-  <!-- Date picker -->
   <div class="iv-dates">
     <label>Start Date</label>
     <input type="date" id="fd" class="iv-dinp"/>
@@ -110,237 +95,261 @@
     </button>
   </div>
 
-  <!-- Table mirip iVAS: RANGE / COUNT / PAID / UNPAID / REVENUE -->
   <div class="tbl-scroll">
     <table class="iv-tbl">
       <thead>
         <tr>
-          <th style="text-align:left;width:44%">Range</th>
-          <th style="text-align:right">Count</th>
-          <th style="text-align:right">Paid</th>
-          <th style="text-align:right">Unpaid</th>
-          <th style="text-align:right;padding-right:20px">Revenue</th>
+          <th style="width:42%">Range</th>
+          <th>Count</th><th>Paid</th><th>Unpaid</th>
+          <th style="padding-right:18px">Revenue</th>
         </tr>
       </thead>
       <tbody id="tbody">
-        <tr><td colspan="5" class="iv-empty">Pilih tanggal dan klik <b>Get SMS</b> untuk melihat data.</td></tr>
+        <tr><td colspan="5" class="iv-empty">Pilih tanggal dan klik <b>Get SMS</b>.</td></tr>
       </tbody>
     </table>
   </div>
 </div>
 
 <script>
-// Init date ke hari ini
-const _today = new Date().toISOString().slice(0,10);
-document.getElementById('fd').value = _today;
-document.getElementById('td').value = _today;
+// ── Local helpers (safe: loaded inline, not dependent on base.html order) ──
+async function _apiFetch(url, opts={}) {
+  const r = await fetch(url, {headers:{'Content-Type':'application/json'}, ...opts})
+  if (r.status === 401) { window.location.href='/login'; return null }
+  return r.json()
+}
+function _esc(t) { return String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
 
-// State tree: rng → {open, loaded, stats, nums: {nk → {open,loaded}}}
-const ST = {};
+// Init date
+const _today = new Date().toISOString().slice(0,10)
+document.getElementById('fd').value = _today
+document.getElementById('td').value = _today
 
-// Rate per SMS
-const RATE_PER_SMS = 0.0120;
+// Global stats
+let _gTot=0, _gPaid=0, _gUnpaid=0, _gRev=0
 
-// ── Globals untuk total stats ──
-let _gTot=0, _gPaid=0, _gUnpaid=0, _gRev=0;
-
-function updateStats(){
-  document.getElementById('stTot').textContent   = _gTot;
-  document.getElementById('stPaid').textContent  = _gPaid;
-  document.getElementById('stUnpaid').textContent= _gUnpaid;
-  document.getElementById('stRev').textContent   = '$'+_gRev.toFixed(2);
+function updateStats() {
+  document.getElementById('stTot').textContent    = _gTot
+  document.getElementById('stPaid').textContent   = _gPaid
+  document.getElementById('stUnpaid').textContent = _gUnpaid
+  document.getElementById('stRev').textContent    = '$' + _gRev.toFixed(2)
 }
 
-// ── Get SMS (main) ──
-async function doGet(){
-  const fd=document.getElementById('fd').value, td=document.getElementById('td').value;
-  const btn=document.getElementById('btnGet'), body=document.getElementById('tbody');
-  btn.disabled=true; btn.innerHTML='<span class="spin"></span> Memuat...';
-  body.innerHTML='<tr><td colspan="5" class="iv-load"><span class="spin"></span> Memuat ranges...</td></tr>';
+// Range ID helper (safe base64 key)
+function rid(n) { return 'r' + btoa(encodeURIComponent(n)).replace(/[^a-zA-Z0-9]/g,'').slice(0,22) }
 
-  // Reset stats
-  _gTot=0; _gPaid=0; _gUnpaid=0; _gRev=0; updateStats();
+// ── Main: Get SMS ──
+async function doGet() {
+  const fd = document.getElementById('fd').value
+  const td = document.getElementById('td').value
+  const btn = document.getElementById('btnGet')
+  const body = document.getElementById('tbody')
+  btn.disabled = true
+  btn.innerHTML = '<span class="spin"></span> Memuat...'
+  body.innerHTML = '<tr><td colspan="5" class="iv-load"><span class="spin"></span> Memuat ranges...</td></tr>'
 
-  try{
-    const d=await apiFetch(`/api/ranges?from=${fd}&to=${td}`);
-    const rngs=d.ranges||[];
-    if(!rngs.length){
-      body.innerHTML='<tr><td colspan="5" class="iv-empty">Tidak ada data untuk tanggal ini.</td></tr>';
-    } else {
-      body.innerHTML=rngs.map(r=>rngHtml(r)).join('');
-      document.getElementById('tsLbl').textContent=new Date().toLocaleTimeString();
-      // Auto-load stats untuk semua range (parallel)
-      rngs.forEach(r=>loadRangeStats(r.name));
+  _gTot=0; _gPaid=0; _gUnpaid=0; _gRev=0; updateStats()
+
+  try {
+    const d = await _apiFetch(`/api/ranges?from=${fd}&to=${td}`)
+    if (!d) throw new Error('Request failed')
+    if (d.ivas_expired) {
+      body.innerHTML = `<tr><td colspan="5" class="iv-empty" style="color:var(--yellow)">⚠️ iVAS belum login. <a href="/dashboard/ivas-login" style="color:var(--accent)">Login iVAS</a></td></tr>`
+      return
     }
-  }catch(e){
-    body.innerHTML=`<tr><td colspan="5" class="iv-empty" style="color:#ef4444">Error: ${escHtml(e.message)}</td></tr>`;
+    const rngs = d.ranges || []
+    if (!rngs.length) {
+      body.innerHTML = '<tr><td colspan="5" class="iv-empty">Tidak ada data untuk tanggal ini.</td></tr>'
+      return
+    }
+    // Render skeleton rows
+    body.innerHTML = rngs.map(r => rngRowHtml(r, fd, td)).join('')
+    document.getElementById('tsLbl').textContent = new Date().toLocaleTimeString()
+    // Load stats for each range in parallel
+    rngs.forEach(r => loadRangeStats(r.name, rid(r.name), fd, td))
+  } catch(e) {
+    body.innerHTML = `<tr><td colspan="5" class="iv-empty" style="color:#ef4444">Error: ${_esc(e.message)}</td></tr>`
+  } finally {
+    btn.disabled = false
+    btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="13 2 13 9 22 9"/><path d="M21 14v6a1 1 0 01-1 1H4a1 1 0 011-1h9"/></svg> Get SMS'
   }
-  btn.disabled=false;
-  btn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="13 2 13 9 22 9"/><path d="M21 14v6a1 1 0 01-1 1H4a1 1 0 01-1-1V4a1 1 0 011-1h9"/></svg> Get SMS';
 }
 
-function rid(name){ return 'r_'+btoa(name).replace(/[^a-zA-Z0-9]/g,'').slice(0,20); }
-
-function rngHtml(rng){
-  const id=rid(rng.name);
-  if(!ST[id]) ST[id]={open:false,loaded:false,nums:{}};
+// Range row HTML (skeleton — stats fill in async)
+function rngRowHtml(rng, fd, td) {
+  const id = rid(rng.name)
   return `
-<tr class="iv-rng" onclick="toggleRng('${escHtml(rng.name)}','${id}')">
-  <td><span class="iv-arr" id="a-${id}">▶</span>${escHtml(rng.name)}</td>
+<tr class="iv-rng" onclick="toggleRng('${_esc(rng.name)}','${id}','${fd}','${td}')">
+  <td>
+    <span class="iv-arr" id="a-${id}">▶</span>
+    ${_esc(rng.name)}
+  </td>
   <td class="cnt-cell cnt-org"><span id="rc-${id}">…</span></td>
   <td class="cnt-cell cnt-grn"><span id="rp-${id}">…</span></td>
   <td class="cnt-cell cnt-red"><span id="ru-${id}">…</span></td>
-  <td class="cnt-cell cnt-rev" style="padding-right:20px"><span id="rr-${id}">…</span></td>
+  <td class="cnt-cell cnt-blu" style="padding-right:18px"><span id="rr-${id}">…</span></td>
 </tr>
-<tr id="rs-${id}" style="display:none"><td colspan="5" style="padding:0"><div id="rc2-${id}"></div></td></tr>`;
+<tr id="rs-${id}" style="display:none">
+  <td colspan="5" style="padding:0">
+    <div id="rc2-${id}"></div>
+  </td>
+</tr>`
 }
 
-// Load stats per range: fetch numbers → count total/paid/unpaid/rev langsung dari /api/numbers endpoint
-async function loadRangeStats(rngName){
-  const id=rid(rngName);
-  const fd=document.getElementById('fd').value, td=document.getElementById('td').value;
-  try{
-    const nd=await apiFetch(`/api/numbers?range=${encodeURIComponent(rngName)}&from=${fd}&to=${td}`);
-    const nums=nd.numbers||[];
-    // Fetch SMS untuk setiap nomor secara parallel (max 5)
-    let tot=0,paid=0,unpaid=0,rev=0;
-    const chunks=[];
-    for(let i=0;i<nums.length;i+=5) chunks.push(nums.slice(i,i+5));
-    for(const chunk of chunks){
-      await Promise.all(chunk.map(async n=>{
-        try{
-          const sd=await apiFetch(`/api/sms/received?range=${encodeURIComponent(rngName)}&number=${encodeURIComponent(n.number)}&from=${fd}&to=${td}`);
-          const msgs=sd.messages||[];
-          const p=msgs.filter(m=>typeof m==='object'?(m.paid==='Paid'):false).length;
-          const u=msgs.length-p;
-          const r=p*RATE_PER_SMS;
-          tot+=msgs.length; paid+=p; unpaid+=u; rev+=r;
-        }catch{}
-      }));
+// ── Load stats per range: get numbers → count SMS per number ──
+async function loadRangeStats(rngName, id, fd, td) {
+  try {
+    // Step 1: get numbers in range
+    const nd = await _apiFetch(`/api/numbers?range=${encodeURIComponent(rngName)}&from=${fd}&to=${td}`)
+    if (!nd) return
+    const nums = nd.numbers || []
+
+    // Step 2: get SMS per number (parallel batches of 3)
+    let tot=0, paid=0, unpaid=0
+    const RATE = 0.01200
+
+    for (let i=0; i<nums.length; i+=3) {
+      const batch = nums.slice(i, i+3)
+      await Promise.all(batch.map(async n => {
+        try {
+          const sd = await _apiFetch(`/api/sms/received?range=${encodeURIComponent(rngName)}&number=${encodeURIComponent(n.number)}&from=${fd}&to=${td}`)
+          if (!sd) return
+          const msgs = sd.messages || []
+          // msgs are plain strings (from ivas_get_sms)
+          // Count paid/unpaid based on keyword in message or total
+          const p = msgs.filter(m => {
+            if (typeof m === 'object') return m.paid === 'Paid'
+            // Plain string — no paid status available
+            return false
+          }).length
+          const count = msgs.length
+          tot += count
+          paid += p
+          unpaid += (count - p)
+        } catch {}
+      }))
     }
-    // Update per-range cells
-    const setEl=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
-    setEl('rc-'+id, tot);
-    setEl('rp-'+id, paid);
-    setEl('ru-'+id, unpaid);
-    setEl('rr-'+id, tot>0?('$'+(rev).toFixed(2)+' USD'):'$0.00');
-    // Update global totals
-    _gTot+=tot; _gPaid+=paid; _gUnpaid+=unpaid; _gRev+=rev;
-    updateStats();
-    // Store for when user opens the range
-    if(ST[id]) ST[id].numCache=nums;
-  }catch{}
-}
 
-// ── Toggle Range ──
-async function toggleRng(name,id){
-  const s=ST[id]; if(!s) return;
-  const arr=document.getElementById('a-'+id);
-  const sub=document.getElementById('rs-'+id);
-  if(s.open){ s.open=false; arr.classList.remove('open'); sub.style.display='none'; return; }
-  s.open=true; arr.classList.add('open'); sub.style.display='';
-  if(s.loaded) return;
-  const cnt=document.getElementById('rc2-'+id);
-  const fd=document.getElementById('fd').value, td=document.getElementById('td').value;
-  cnt.innerHTML='<div class="iv-load"><span class="spin"></span> Memuat nomor...</div>';
-  try{
-    const nd=await apiFetch(`/api/numbers?range=${encodeURIComponent(name)}&from=${fd}&to=${td}`);
-    const nums=nd.numbers||[];
-    s.loaded=true;
-    if(!nums.length){ cnt.innerHTML='<div class="iv-load">Tidak ada nomor.</div>'; return; }
-    cnt.innerHTML=`<table class="iv-sub-tbl">
-<thead><tr>
-  <th>Number</th>
-  <th class="n" style="text-align:right">Count</th>
-  <th class="n" style="text-align:right">Paid</th>
-  <th class="n" style="text-align:right">Unpaid</th>
-  <th class="n" style="text-align:right">Revenue</th>
-</tr></thead>
-<tbody>${nums.map(n=>numHtml(name,id,n.number)).join('')}</tbody>
-</table>`;
-  }catch(e){
-    cnt.innerHTML=`<div class="iv-load" style="color:#ef4444">Error: ${escHtml(e.message)}</div>`;
+    const rev = paid * RATE
+
+    // Update row cells
+    const se = (el, v) => { const x=document.getElementById(el); if(x) x.textContent=v }
+    se('rc-'+id, tot)
+    se('rp-'+id, paid)
+    se('ru-'+id, unpaid)
+    se('rr-'+id, tot > 0 ? ('$'+rev.toFixed(2)+' USD') : '$0.00')
+
+    // Update global totals
+    _gTot += tot; _gPaid += paid; _gUnpaid += unpaid; _gRev += rev
+    updateStats()
+
+    // Cache nums for when user opens range
+    window['_nums_'+id] = nums
+  } catch(e) {
+    const x = document.getElementById('rc-'+id); if(x) x.textContent='err'
   }
 }
 
-function nk(rid,num){ return rid+'_'+num.replace(/\D/g,''); }
-
-function numHtml(rng,rid,num){
-  const k=nk(rid,num);
-  if(!ST[rid].nums[k]) ST[rid].nums[k]={open:false,loaded:false};
-  return `
-<tr class="iv-num-row" onclick="toggleNum('${escHtml(rng)}','${rid}','${escHtml(num)}','${k}')">
+// ── Toggle Range row ──
+const _rngLoaded = {}
+async function toggleRng(name, id, fd, td) {
+  const arr = document.getElementById('a-'+id)
+  const sub = document.getElementById('rs-'+id)
+  if (!sub) return
+  const open = sub.style.display !== 'none'
+  if (open) { sub.style.display='none'; arr.classList.remove('open'); return }
+  sub.style.display = ''; arr.classList.add('open')
+  if (_rngLoaded[id]) return
+  const cnt = document.getElementById('rc2-'+id)
+  cnt.innerHTML = '<div class="iv-load"><span class="spin"></span> Memuat nomor...</div>'
+  try {
+    const nd = await _apiFetch(`/api/numbers?range=${encodeURIComponent(name)}&from=${fd}&to=${td}`)
+    const nums = nd?.numbers || []
+    _rngLoaded[id] = true
+    if (!nums.length) { cnt.innerHTML='<div class="iv-load">Tidak ada nomor.</div>'; return }
+    const RATE = 0.01200
+    cnt.innerHTML = `
+<table class="sub-tbl">
+<thead><tr>
+  <th>Number</th>
+  <th style="text-align:right">Count</th>
+  <th style="text-align:right">Paid</th>
+  <th style="text-align:right">Unpaid</th>
+  <th style="text-align:right">Revenue</th>
+</tr></thead>
+<tbody>
+${nums.map(n => {
+  const nk = 'n_'+id+'_'+n.number.replace(/\D/g,'')
+  return `<tr class="iv-num-row" onclick="toggleNum('${_esc(name)}','${nk}','${_esc(n.number)}','${fd}','${td}')">
   <td>
-    <span class="iv-arr" id="a-${k}" style="font-size:9px">▶</span>
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:5px;color:var(--ink3)"><path d="M22 16.92v3a2 2 0 01-2.18 2A19.86 19.86 0 013.08 4.18 2 2 0 015.07 2h3a2 2 0 012 1.72c.13 1 .37 1.98.72 2.92a2 2 0 01-.45 2.11L9.09 9.91a16 16 0 006.99 7l1.16-1.16a2 2 0 012.11-.45c.94.35 1.91.59 2.91.72A2 2 0 0122 17z"/></svg>
-    <span style="font-family:var(--mono);font-weight:600">${escHtml(num)}</span>
-    <span id="nb-${k}" style="margin-left:8px"></span>
+    <span class="iv-arr" id="aa-${nk}" style="font-size:9px">▶</span>
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;color:var(--ink3);margin:0 5px"><path d="M22 16.92v3a2 2 0 01-2.18 2A19.86 19.86 0 013.08 4.18 2 2 0 015.07 2h3a2 2 0 012 1.72c.13 1 .37 1.98.72 2.92a2 2 0 01-.45 2.11L9.09 9.91a16 16 0 006.99 7l1.16-1.16a2 2 0 012.11-.45c.94.35 1.91.59 2.91.72A2 2 0 0122 17z"/></svg>
+    <b style="font-family:var(--mono)">${_esc(n.number)}</b>
+    <span id="nb-${nk}" style="margin-left:8px"></span>
   </td>
-  <td class="n" style="text-align:right" id="nc-${k}">—</td>
-  <td class="n" style="text-align:right" id="np-${k}">—</td>
-  <td class="n" style="text-align:right" id="nu-${k}">—</td>
-  <td class="n" style="text-align:right" id="nr-${k}">—</td>
+  <td style="text-align:right;font-family:var(--mono)" id="nc-${nk}">—</td>
+  <td style="text-align:right;font-family:var(--mono);color:#22c55e" id="np-${nk}">—</td>
+  <td style="text-align:right;font-family:var(--mono);color:#ef4444" id="nu-${nk}">—</td>
+  <td style="text-align:right;font-family:var(--mono);color:#3b82f6" id="nr-${nk}">—</td>
 </tr>
-<tr id="ns-${k}" style="display:none"><td colspan="5" style="padding:0"><div id="nsc-${k}"></div></td></tr>`;
+<tr id="ns-${nk}" style="display:none">
+  <td colspan="5" style="padding:0"><div id="nsc-${nk}"></div></td>
+</tr>`
+}).join('')}
+</tbody>
+</table>`
+  } catch(e) {
+    cnt.innerHTML = `<div class="iv-load" style="color:#ef4444">Error: ${_esc(e.message)}</div>`
+  }
 }
 
-// ── Toggle Number ──
-async function toggleNum(rng,rid,num,k){
-  const s=ST[rid]?.nums[k]; if(!s) return;
-  const arr=document.getElementById('a-'+k);
-  const sub=document.getElementById('ns-'+k);
-  if(s.open){ s.open=false; arr.classList.remove('open'); sub.style.display='none'; return; }
-  s.open=true; arr.classList.add('open'); sub.style.display='';
-  if(s.loaded) return;
-  const cnt=document.getElementById('nsc-'+k);
-  const fd=document.getElementById('fd').value, td=document.getElementById('td').value;
-  cnt.innerHTML='<div class="iv-load"><span class="spin"></span> Memuat SMS...</div>';
-  try{
-    const d=await apiFetch(`/api/sms/received?range=${encodeURIComponent(rng)}&number=${encodeURIComponent(num)}&from=${fd}&to=${td}`);
-    const msgs=d.messages||[];
-    s.loaded=true;
+// ── Toggle Number row ──
+const _numLoaded = {}
+async function toggleNum(rng, nk, num, fd, td) {
+  const arr = document.getElementById('aa-'+nk)
+  const sub = document.getElementById('ns-'+nk)
+  if (!sub) return
+  const open = sub.style.display !== 'none'
+  if (open) { sub.style.display='none'; arr.classList.remove('open'); return }
+  sub.style.display = ''; arr.classList.add('open')
+  if (_numLoaded[nk]) return
+  const cnt = document.getElementById('nsc-'+nk)
+  cnt.innerHTML = '<div class="iv-load"><span class="spin"></span> Memuat SMS...</div>'
+  try {
+    const d = await _apiFetch(`/api/sms/received?range=${encodeURIComponent(rng)}&number=${encodeURIComponent(num)}&from=${fd}&to=${td}`)
+    const msgs = d?.messages || []
+    _numLoaded[nk] = true
 
-    // Hitung paid/unpaid per nomor
-    const paidCount  = msgs.filter(m=>typeof m==='object'?(m.paid==='Paid'):false).length;
-    const unpaidCount= msgs.length - paidCount;
-    const rev        = paidCount * RATE_PER_SMS;
+    // Update number stats
+    const se = (el,v) => { const x=document.getElementById(el); if(x) x.textContent=v }
+    se('nc-'+nk, msgs.length)
+    se('np-'+nk, '—')
+    se('nu-'+nk, '—')
+    se('nr-'+nk, '—')
+    se('nb-'+nk, msgs.length ? `<span class="bc">${msgs.length}</span>` : '')
 
-    // Update stat cells di number row
-    const se=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
-    se('nc-'+k, msgs.length);
-    se('np-'+k, paidCount);
-    se('nu-'+k, unpaidCount);
-    se('nr-'+k, msgs.length>0?('$'+rev.toFixed(4)):'-');
-    se('nb-'+k, `<span class="bc">${msgs.length}</span>`);
+    if (!msgs.length) { cnt.innerHTML='<div class="iv-load">Tidak ada SMS.</div>'; return }
 
-    if(!msgs.length){ cnt.innerHTML='<div class="iv-load">Tidak ada SMS.</div>'; return; }
-
-    cnt.innerHTML=`
-<table class="iv-sms-tbl">
-  <thead><tr>
-    <th>Sender</th>
-    <th class="n" style="width:50%">Message</th>
-    <th class="n">Time</th>
-    <th class="n">Status</th>
-  </tr></thead>
-  <tbody>
-    ${msgs.map(m=>{
-      const txt = typeof m==='string'?m:(m.message||m.otp_message||String(m));
-      const sid = typeof m==='object'?(m.sid||m.originator||''):'';
-      const rcv = typeof m==='object'?(m.received_at||''):'';
-      const paid= typeof m==='object'?m.paid:'';
-      const ts  = rcv?rcv.replace('T',' ').slice(0,19):'';
-      return `<tr>
-        <td>${sid?`<span class="sid-pill">${escHtml(sid)}</span>`:''}</td>
-        <td class="n" style="word-break:break-word;line-height:1.5">${escHtml(txt)}</td>
-        <td class="n" style="font-family:var(--mono);font-size:11px;color:var(--ink3);white-space:nowrap">${escHtml(ts)}</td>
-        <td class="n">${paid==='Paid'?'<span class="bp">Paid</span>':paid==='Unpaid'?'<span class="bu">Unpaid</span>':''}</td>
-      </tr>`;
-    }).join('')}
-  </tbody>
-</table>`;
-  }catch(e){
-    cnt.innerHTML=`<div class="iv-load" style="color:#ef4444">Error: ${escHtml(e.message)}</div>`;
+    cnt.innerHTML = `
+<table class="sms-tbl">
+<thead><tr>
+  <th style="width:50%">Message</th>
+  <th>Waktu</th>
+</tr></thead>
+<tbody>
+${msgs.map(m => {
+  const txt = typeof m==='object' ? (m.message||m.otp_message||JSON.stringify(m)) : String(m)
+  const ts  = typeof m==='object' ? (m.received_at||'') : ''
+  const time = ts ? ts.replace('T',' ').slice(0,19) : ''
+  return `<tr>
+  <td style="word-break:break-word;line-height:1.5">${_esc(txt)}</td>
+  <td style="font-family:var(--mono);font-size:11px;color:var(--ink3);white-space:nowrap">${_esc(time)||'—'}</td>
+</tr>`
+}).join('')}
+</tbody>
+</table>`
+  } catch(e) {
+    cnt.innerHTML = `<div class="iv-load" style="color:#ef4444">Error: ${_esc(e.message)}</div>`
   }
 }
 </script>
