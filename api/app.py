@@ -63,6 +63,13 @@ logger = logging.getLogger("kyshiro")
 # ─── Flask ───────────────────────────────────────────────────────────
 app = Flask(__name__, template_folder="templates", static_folder="static")
 app.secret_key = os.getenv("SECRET_KEY", "kyshiro-change-this-secret")
+# Session permanent — tidak hilang saat browser navigate / tutup tab
+app.config["SESSION_PERMANENT"] = True
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=7)
+
+@app.before_request
+def _make_session_permanent():
+    session.permanent = True
 
 # ─── iVAS Constants ──────────────────────────────────────────────────
 IVAS_BASE     = "https://www.ivasms.com"
@@ -1231,22 +1238,48 @@ def _log_api(user_id, endpoint, method, ip, status):
 WA_URL   = os.getenv("WA_BOT_URL","http://localhost:3001")
 WA_TOKEN = os.getenv("WA_BOT_TOKEN","kyshiro-wa-secret")
 
+def wa_bot_status() -> dict:
+    """Cek status WA bot (connected/disconnected/qr_available)."""
+    try:
+        r = req_lib.get(f"{WA_URL}/status", timeout=5)
+        if r.status_code == 200:
+            return r.json()
+        return {"wa_ready": False, "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"wa_ready": False, "error": str(e), "offline": True}
+
 def send_otp_wa(nomor: str, otp: str, nama: str="") -> tuple:
+    """Kirim OTP via WA bot. Return (success, message)."""
     pesan = (f"Halo {nama}!\n\n"
              f"Kode OTP kamu: *{otp}*\n\n"
              f"Berlaku 5 menit. Jangan bagikan ke siapapun.\n\n"
              f"— KY-SHIRO OFFICIAL")
+    # Selalu log OTP di server untuk debugging
+    logger.info(f"[OTP] Kirim ke {nomor}: {otp}")
     try:
         r = req_lib.post(f"{WA_URL}/send",
             json={"token": WA_TOKEN, "number": nomor, "message": pesan},
             timeout=10)
+        data = {}
+        try: data = r.json()
+        except: pass
         if r.status_code == 200:
-            return True, "OTP terkirim"
-        return False, f"WA bot error: {r.status_code}"
+            logger.info(f"[OTP] ✅ Terkirim ke {nomor}")
+            return True, "OTP terkirim via WhatsApp"
+        elif r.status_code == 202:
+            # Queued — WA bot menerima tapi belum terkirim (WA belum ready)
+            logger.warning(f"[OTP] ⏳ Queued ke {nomor} — WA bot belum ready")
+            return True, "OTP masuk antrian WA (WA bot sedang connect)"
+        else:
+            msg = data.get("message", f"WA bot error: {r.status_code}")
+            logger.error(f"[OTP] ❌ Gagal ke {nomor}: {msg}")
+            return False, f"Gagal kirim WA: {msg}"
+    except req_lib.exceptions.ConnectionError:
+        logger.error(f"[OTP] ❌ WA bot offline (tidak bisa konek ke {WA_URL})")
+        return False, f"WA bot offline. OTP={otp} (cek log server)"
     except Exception as e:
-        logger.error(f"[WA] {e}")
-        logger.info(f"[WA-DEMO] OTP untuk {nomor}: {otp}")
-        return True, f"DEMO: OTP={otp} (WA bot belum aktif, cek log server)"
+        logger.error(f"[OTP] ❌ Exception: {e}")
+        return False, f"Error: {str(e)}"
 
 def _gen_otp(): return str(secrets.randbelow(900000)+100000)
 
@@ -1257,8 +1290,9 @@ def login_required(f):
     @wraps(f)
     def _d(*a, **kw):
         if "uid" not in session:
-            if request.path.startswith("/api/"):
-                return jsonify({"status":"error","message":"Login diperlukan"}), 401
+            # AJAX / API request → kembalikan JSON
+            if request.path.startswith("/api/") or request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return jsonify({"status":"error","message":"Session expired. Silakan login ulang.","redirect":"/login"}), 401
             return redirect(url_for("pg_login"))
         return f(*a, **kw)
     return _d
@@ -1272,7 +1306,9 @@ def admin_required(f):
     return _d
 
 def ivas_required(f):
-    """Endpoint butuh user sudah login ke iVAS. Support API Key."""
+    """Endpoint butuh user sudah login ke iVAS. Support API Key.
+    AUTO RE-LOGIN: kalau iVAS session hilang/expired → otomatis login ulang pakai kredensial tersimpan.
+    """
     @wraps(f)
     def _d(*a, **kw):
         key = request.headers.get("X-API-Key") or request.args.get("api_key","")
@@ -1288,19 +1324,46 @@ def ivas_required(f):
                     r = ivas_login(uid, u["ivas_email"], u["ivas_pass"])
                     if not r.get("ok"):
                         return jsonify({"status":"error","message":f"Login iVAS gagal: {r.get('error')}"}), 403
-                    # Start WS otomatis
                     threading.Thread(target=ws_start_all, args=(uid,), daemon=True).start()
                 else:
                     return jsonify({"status":"error","message":"Belum set kredensial iVAS"}), 403
             g.uid = uid
             _log_api(uid, request.path, request.method, request.remote_addr, 200)
             return f(*a, **kw)
+
+        # Session-based auth
         if "uid" not in session:
-            return jsonify({"status":"error","message":"Login diperlukan"}), 401
+            return jsonify({"status":"error","message":"Login diperlukan","redirect":"/login"}), 401
         uid  = session["uid"]
         sess = get_ivas_session(uid)
+
+        # iVAS session hilang → coba auto re-login pakai kredensial tersimpan
         if not sess:
-            return jsonify({"status":"error","message":"Belum login ke iVAS. Pergi ke /dashboard/ivas-login"}), 403
+            c = db()
+            u = c.execute("SELECT ivas_email,ivas_pass,is_active FROM ky_users WHERE id=?",(uid,)).fetchone()
+            c.close()
+            if u and u["ivas_email"] and u["ivas_pass"] and u["is_active"]:
+                logger.info(f"[ivas_required] Auto re-login iVAS untuk user={uid}...")
+                result = ivas_login(uid, u["ivas_email"], u["ivas_pass"])
+                if result.get("ok"):
+                    logger.info(f"[ivas_required] Auto re-login BERHASIL user={uid}")
+                    threading.Thread(target=ws_start_all, args=(uid,), daemon=True).start()
+                    sess = result
+                else:
+                    logger.warning(f"[ivas_required] Auto re-login GAGAL user={uid}: {result.get('error')}")
+                    return jsonify({
+                        "status":"error",
+                        "message":"Session iVAS expired. Sedang mencoba login ulang, refresh sebentar.",
+                        "ivas_expired": True
+                    }), 403
+            else:
+                return jsonify({
+                    "status":"error",
+                    "message":"Belum login ke iVAS. Pergi ke halaman Login iVAS.",
+                    "redirect": "/dashboard/ivas-login",
+                    "ivas_expired": True
+                }), 403
+
         g.uid = uid
         return f(*a, **kw)
     return _d
@@ -1330,14 +1393,18 @@ def pg_login():
             else:
                 session["uid"] = u["id"]; session["username"] = u["username"]
                 session["role"] = u["role"]; session["nama"] = u["nama"]
+                session.permanent = True  # Session tidak hilang saat navigate/reload
                 c = db(); c.execute("UPDATE ky_users SET last_login=? WHERE id=?",(datetime.now().isoformat(),u["id"]))
                 c.commit(); c.close()
-                # Auto re-login iVAS kalau ada kredensial tersimpan
+                # Auto re-login iVAS + start WebSocket di background
                 if u["ivas_email"] and u["ivas_pass"]:
+                    _uid = u["id"]; _ie = u["ivas_email"]; _ip = u["ivas_pass"]
                     def _auto_login():
-                        res = ivas_login(u["id"], u["ivas_email"], u["ivas_pass"])
+                        res = ivas_login(_uid, _ie, _ip)
                         if res.get("ok"):
-                            ws_start_all(u["id"])
+                            ws_start_all(_uid)
+                        else:
+                            logger.warning(f"[Login] Auto iVAS gagal user={_uid}: {res.get('error')}")
                     threading.Thread(target=_auto_login, daemon=True).start()
                 return redirect(url_for("pg_dashboard"))
     return render_template("auth/login.html", error=err)
@@ -1640,6 +1707,51 @@ def api_ivas_logout():
     with _ivas_lock: _ivas_sessions.pop(uid,None)
     c = db(); c.execute("UPDATE ky_users SET ivas_status='disconnected' WHERE id=?",(uid,)); c.commit(); c.close()
     return jsonify({"status":"ok","message":"Logout dari iVAS berhasil"})
+
+@app.route("/api/ivas/auto-reconnect", methods=["POST"])
+@login_required
+def api_ivas_auto_reconnect():
+    """Auto reconnect iVAS pakai kredensial tersimpan — dipanggil dari frontend saat detect disconnect."""
+    uid = session["uid"]
+    c = db()
+    u = c.execute("SELECT ivas_email,ivas_pass FROM ky_users WHERE id=? AND is_active=1",(uid,)).fetchone()
+    c.close()
+    if not u or not u["ivas_email"] or not u["ivas_pass"]:
+        return jsonify({"status":"error","message":"Belum ada kredensial iVAS. Login manual dulu.","need_login":True}), 400
+    # Cek kalau sudah connected
+    sess = get_ivas_session(uid)
+    if sess and sess.get("ok"):
+        return jsonify({"status":"ok","message":"iVAS sudah connected","already_connected":True})
+    logger.info(f"[AUTO-RECONNECT] user={uid} mencoba reconnect iVAS...")
+    result = ivas_login(uid, u["ivas_email"], u["ivas_pass"])
+    if result.get("ok"):
+        threading.Thread(target=ws_start_all, args=(uid,), daemon=True).start()
+        return jsonify({"status":"ok","message":"iVAS reconnect berhasil","email":u["ivas_email"]})
+    return jsonify({"status":"error","message":f"Reconnect gagal: {result.get('error','Unknown error')}"}), 500
+
+@app.route("/api/session/check")
+@login_required
+def api_session_check():
+    """Cek apakah Flask session + iVAS session masih valid. Dipakai frontend untuk heartbeat."""
+    uid  = session["uid"]
+    sess = get_ivas_session(uid)
+    with _ws_lock:
+        ws_stat    = _ws_status.get(uid,{})
+        live_count = len(_ws_live.get(uid,[]))
+        test_count = len(_ws_test.get(uid,[]))
+    c = db()
+    u = c.execute("SELECT ivas_email,ivas_status FROM ky_users WHERE id=?",(uid,)).fetchone()
+    c.close()
+    return jsonify({
+        "status":            "ok",
+        "session_valid":     True,
+        "ivas_connected":    bool(sess and sess.get("ok")),
+        "ivas_email":        u["ivas_email"] if u else "",
+        "ws_test_connected": ws_stat.get("connected", False),
+        "ws_live_connected": ws_stat.get("live_connected", False),
+        "ws_live_cached":    live_count,
+        "ws_test_cached":    test_count,
+    })
 
 # ─── SMS Live (My Numbers) ────────────────────────────────────────
 @app.route("/api/sms/live")
@@ -2141,6 +2253,94 @@ def api_admin_delete(uid):
     if uid == session["uid"]: return jsonify({"status":"error","message":"Tidak bisa hapus diri sendiri"}), 400
     c = db(); c.execute("DELETE FROM ky_users WHERE id=?",(uid,)); c.commit(); c.close()
     return jsonify({"status":"ok"})
+
+# ═══════════════════════════════════════════════════════════════════
+# WA BOT ADMIN API
+# ═══════════════════════════════════════════════════════════════════
+
+@app.route("/api/admin/wa/status")
+@admin_required
+def api_admin_wa_status():
+    """Cek status WA bot — online/offline, ready/qr/pairing."""
+    st = wa_bot_status()
+    return jsonify({"status":"ok","wa":st})
+
+@app.route("/api/admin/wa/qr")
+@admin_required
+def api_admin_wa_qr():
+    """Ambil QR code dari WA bot (sebagai HTML page / data URL)."""
+    try:
+        r = req_lib.get(f"{WA_URL}/qr-json", timeout=5)
+        if r.status_code == 200:
+            return jsonify({"status":"ok","qr": r.json()})
+    except: pass
+    # Fallback: kembalikan URL qr page
+    return jsonify({"status":"ok","qr_url": f"{WA_URL}/qr"})
+
+@app.route("/api/admin/wa/pairing", methods=["POST"])
+@admin_required
+def api_admin_wa_pairing():
+    """Request pairing code via nomor HP."""
+    data = request.get_json(silent=True) or {}
+    nomor = str(data.get("nomor","")).strip().replace("+","").replace(" ","")
+    if not nomor or not nomor.isdigit() or len(nomor) < 10:
+        return jsonify({"status":"error","message":"Nomor HP tidak valid. Contoh: 6281234567890"}), 400
+    try:
+        r = req_lib.post(f"{WA_URL}/pairing",
+            json={"token": WA_TOKEN, "phone": nomor},
+            timeout=15)
+        data_r = {}
+        try: data_r = r.json()
+        except: pass
+        if r.status_code == 200:
+            return jsonify({"status":"ok","code": data_r.get("code",""), "message": data_r.get("message","Pairing code dikirim")})
+        return jsonify({"status":"error","message": data_r.get("message", f"WA bot error {r.status_code}")}), 400
+    except req_lib.exceptions.ConnectionError:
+        return jsonify({"status":"error","message":"WA bot offline. Pastikan wa-bot container sudah jalan."}), 503
+    except Exception as e:
+        return jsonify({"status":"error","message":str(e)}), 500
+
+@app.route("/api/admin/wa/restart", methods=["POST"])
+@admin_required
+def api_admin_wa_restart():
+    """Restart koneksi WA bot."""
+    try:
+        r = req_lib.post(f"{WA_URL}/restart",
+            json={"token": WA_TOKEN}, timeout=10)
+        data_r = {}
+        try: data_r = r.json()
+        except: pass
+        if r.status_code == 200:
+            return jsonify({"status":"ok","message": data_r.get("message","WA bot restart dimulai")})
+        return jsonify({"status":"error","message": f"HTTP {r.status_code}"}), 400
+    except Exception as e:
+        return jsonify({"status":"error","message":str(e)}), 500
+
+@app.route("/api/admin/wa/logout", methods=["POST"])
+@admin_required
+def api_admin_wa_logout():
+    """Logout WA bot (clear auth, scan QR ulang)."""
+    try:
+        r = req_lib.post(f"{WA_URL}/logout",
+            json={"token": WA_TOKEN}, timeout=10)
+        data_r = {}
+        try: data_r = r.json()
+        except: pass
+        return jsonify({"status":"ok","message": data_r.get("message","Logout berhasil. Scan QR ulang.")})
+    except Exception as e:
+        return jsonify({"status":"error","message":str(e)}), 500
+
+@app.route("/api/admin/wa/test-otp", methods=["POST"])
+@admin_required
+def api_admin_wa_test_otp():
+    """Test kirim OTP ke nomor tertentu."""
+    data = request.get_json(silent=True) or {}
+    nomor = str(data.get("nomor","")).strip()
+    if not nomor:
+        return jsonify({"status":"error","message":"Nomor wajib diisi"}), 400
+    otp = _gen_otp()
+    ok, msg = send_otp_wa(nomor, otp, "Test Admin")
+    return jsonify({"status":"ok" if ok else "error","message":msg,"otp": otp if ok else None})
 
 # ─── Health ───────────────────────────────────────────────────────
 @app.route("/health")

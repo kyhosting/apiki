@@ -1,5 +1,5 @@
 {% extends "dashboard/base.html" %}{% block page_title %}Admin Panel{% endblock %}{% block content %}
-<div class="page-hdr"><div class="page-title">⚙ Admin Panel</div><div class="page-sub">Kelola user dan pantau aktivitas sistem</div></div>
+<div class="page-hdr"><div class="page-title">⚙ Admin Panel</div><div class="page-sub">Kelola user, WhatsApp Bot, dan pantau aktivitas sistem</div></div>
 
 <!-- Stats -->
 <div class="stats-grid" style="margin-bottom:16px">
@@ -8,6 +8,107 @@
   <div class="stat"><div class="stat-icon">⚡</div><div class="stat-val" style="color:var(--accent)">{{ stats.ivas_active }}</div><div class="stat-label">iVAS Aktif</div></div>
   <div class="stat"><div class="stat-icon">📊</div><div class="stat-val">{{ stats.today_logs }}</div><div class="stat-label">Request Hari Ini</div></div>
   <div class="stat"><div class="stat-icon">🗂</div><div class="stat-val">{{ stats.total_logs }}</div><div class="stat-label">Total Request</div></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     WA BOT CONNECT PANEL
+════════════════════════════════════════════════════════ -->
+<div class="card" style="margin-bottom:16px;border-color:rgba(0,232,135,.15)">
+  <div class="card-header">
+    <div class="card-title">📱 WhatsApp Bot — OTP Sender</div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span id="wa-badge" class="badge badge-gray">Memuat...</span>
+      <button class="btn btn-outline btn-xs" onclick="loadWaStatus()" title="Refresh status">↻</button>
+    </div>
+  </div>
+
+  <!-- Status row -->
+  <div id="wa-status-bar" style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg2);border-radius:10px;margin-bottom:16px;border:1px solid var(--border)">
+    <span class="dot dot-red dot-pulse" id="wa-dot"></span>
+    <div style="flex:1">
+      <div id="wa-status-text" style="font-size:13px;font-weight:600;color:var(--ink)">Memuat status...</div>
+      <div id="wa-status-sub" style="font-size:11px;color:var(--ink3);margin-top:2px"></div>
+    </div>
+    <div id="wa-queue-badge" style="display:none">
+      <span class="badge badge-yellow" id="wa-queue-text">0 antrian</span>
+    </div>
+  </div>
+
+  <!-- Tab switch: QR / Pairing -->
+  <div style="display:flex;gap:8px;margin-bottom:16px">
+    <button class="btn btn-primary btn-sm" id="tab-qr" onclick="switchTab('qr')">📷 Scan QR</button>
+    <button class="btn btn-outline btn-sm" id="tab-pairing" onclick="switchTab('pairing')">🔢 Pairing Code</button>
+  </div>
+
+  <!-- QR Panel -->
+  <div id="panel-qr">
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start">
+      <!-- QR Image box -->
+      <div id="qr-box" style="width:220px;min-height:220px;background:var(--bg2);border:2px dashed var(--border2);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;flex-shrink:0">
+        <div id="qr-loading" style="text-align:center;color:var(--ink3)">
+          <div class="spin" style="margin:0 auto 8px"></div>
+          <div style="font-size:12px">Memuat QR...</div>
+        </div>
+        <img id="qr-img" src="" alt="QR" style="display:none;width:200px;height:200px;border-radius:8px"/>
+        <div id="qr-connected" style="display:none;text-align:center;padding:16px">
+          <div style="font-size:32px;margin-bottom:8px">✅</div>
+          <div style="font-size:13px;font-weight:700;color:var(--green)">WA Connected!</div>
+          <div id="qr-wa-user" style="font-size:11px;color:var(--ink3);margin-top:4px"></div>
+        </div>
+      </div>
+      <!-- Instructions -->
+      <div style="flex:1;min-width:200px">
+        <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:10px">Cara Connect via QR:</div>
+        <div style="font-size:12.5px;color:var(--ink2);line-height:2">
+          1️⃣ Buka WhatsApp di HP<br>
+          2️⃣ Tap ⋮ (titik tiga) di pojok kanan atas<br>
+          3️⃣ Pilih <strong>Linked Devices</strong><br>
+          4️⃣ Tap <strong>Link a Device</strong><br>
+          5️⃣ Scan QR di sebelah kiri<br>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-outline btn-sm" onclick="loadQR()">↻ Refresh QR</button>
+          <button class="btn btn-danger btn-sm" onclick="waLogout()">🚪 Logout WA</button>
+          <button class="btn btn-outline btn-sm" onclick="waRestart()">⟳ Restart Bot</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pairing Code Panel -->
+  <div id="panel-pairing" style="display:none">
+    <div style="max-width:400px">
+      <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:10px">Connect via Kode Pairing (tanpa scan QR):</div>
+      <div style="font-size:12.5px;color:var(--ink2);margin-bottom:14px;line-height:1.7">
+        Masukkan nomor WhatsApp yang akan dijadikan bot OTP.<br>
+        Kode akan dikirim ke HP tersebut via notifikasi WhatsApp.
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <input type="tel" id="pairing-phone" class="form-input" placeholder="Contoh: 6281234567890" style="flex:1"
+          onkeydown="if(event.key==='Enter')requestPairing()"/>
+        <button class="btn btn-primary" onclick="requestPairing()" id="pairing-btn">Kirim Kode</button>
+      </div>
+      <div id="pairing-result" style="display:none;padding:14px;border-radius:10px;margin-top:8px"></div>
+      <div style="margin-top:16px;font-size:12.5px;color:var(--ink2);line-height:2">
+        <strong>Setelah dapat kode:</strong><br>
+        1️⃣ Buka WhatsApp di HP tersebut<br>
+        2️⃣ Tap ⋮ → <strong>Linked Devices</strong><br>
+        3️⃣ Tap <strong>Link with phone number instead</strong><br>
+        4️⃣ Masukkan kode 8 digit yang muncul di bawah
+      </div>
+    </div>
+  </div>
+
+  <!-- Test OTP -->
+  <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:14px">
+    <div style="font-size:12px;font-weight:700;color:var(--ink2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">🧪 Test Kirim OTP</div>
+    <div style="display:flex;gap:8px;max-width:400px">
+      <input type="tel" id="test-nomor" class="form-input" placeholder="Nomor tujuan: 6281234567890" style="flex:1"
+        onkeydown="if(event.key==='Enter')testOtp()"/>
+      <button class="btn btn-outline btn-sm" onclick="testOtp()" id="test-otp-btn">Kirim Test</button>
+    </div>
+    <div id="test-otp-result" style="display:none;margin-top:10px;padding:10px 14px;border-radius:8px;font-size:13px"></div>
+  </div>
 </div>
 
 <!-- Users Table -->
@@ -77,6 +178,197 @@
 </div>
 
 <script>
+// ── Tab switch ──────────────────────────────────────
+function switchTab(tab) {
+  document.getElementById('panel-qr').style.display      = tab==='qr'      ? '' : 'none'
+  document.getElementById('panel-pairing').style.display = tab==='pairing' ? '' : 'none'
+  document.getElementById('tab-qr').className      = tab==='qr'      ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm'
+  document.getElementById('tab-pairing').className = tab==='pairing' ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm'
+  if (tab === 'qr') loadQR()
+}
+
+// ── WA Status ──────────────────────────────────────
+async function loadWaStatus() {
+  try {
+    const d = await apiFetch('/api/admin/wa/status')
+    if (!d) return
+    const wa = d.wa || {}
+    const dot     = document.getElementById('wa-dot')
+    const badge   = document.getElementById('wa-badge')
+    const txt     = document.getElementById('wa-status-text')
+    const sub     = document.getElementById('wa-status-sub')
+    const qBadge  = document.getElementById('wa-queue-badge')
+    const qTxt    = document.getElementById('wa-queue-text')
+
+    if (wa.wa_ready) {
+      dot.className = 'dot dot-green'
+      badge.className = 'badge badge-green'; badge.textContent = '✅ Connected'
+      txt.textContent = 'WhatsApp Bot Connected'
+      sub.textContent = wa.wa_user ? `Akun: ${wa.wa_user.id || wa.wa_user.name || 'OK'}` : 'Bot siap kirim OTP'
+      // Update QR box ke connected state
+      showQrConnected(wa.wa_user)
+    } else if (wa.offline) {
+      dot.className = 'dot dot-red dot-pulse'
+      badge.className = 'badge badge-red'; badge.textContent = '❌ Offline'
+      txt.textContent = 'WA Bot Offline'
+      sub.textContent = 'Container wa-bot tidak berjalan. Cek docker-compose.'
+    } else {
+      dot.className = 'dot dot-yellow dot-pulse'
+      badge.className = 'badge badge-yellow'; badge.textContent = `⏳ ${wa.state || 'connecting'}`
+      txt.textContent = `Status: ${wa.state || 'Connecting...'}`
+      sub.textContent = wa.last_error ? `Error: ${wa.last_error}` : 'Menunggu koneksi WA...'
+    }
+
+    const qSize = wa.queue_size || 0
+    if (qSize > 0) {
+      qBadge.style.display = ''
+      qTxt.textContent = `${qSize} pesan antrian`
+    } else {
+      qBadge.style.display = 'none'
+    }
+  } catch(e) { console.warn('WA status error:', e) }
+}
+
+// ── QR Loader ──────────────────────────────────────
+async function loadQR() {
+  document.getElementById('qr-loading').style.display = 'flex'
+  document.getElementById('qr-img').style.display = 'none'
+  document.getElementById('qr-connected').style.display = 'none'
+  try {
+    const d = await apiFetch('/api/admin/wa/qr')
+    if (!d) return
+    const qr = d.qr || {}
+    if (qr.status === 'connected') {
+      showQrConnected(qr.wa_user)
+    } else if (qr.status === 'qr' && qr.qr_data_url) {
+      document.getElementById('qr-loading').style.display = 'none'
+      const img = document.getElementById('qr-img')
+      img.src = qr.qr_data_url
+      img.style.display = 'block'
+    } else {
+      // Waiting — auto retry
+      document.getElementById('qr-loading').style.display = 'flex'
+      setTimeout(loadQR, 4000)
+    }
+  } catch(e) {
+    document.getElementById('qr-loading').style.display = 'flex'
+    setTimeout(loadQR, 5000)
+  }
+}
+
+function showQrConnected(user) {
+  document.getElementById('qr-loading').style.display = 'none'
+  document.getElementById('qr-img').style.display = 'none'
+  const box = document.getElementById('qr-connected')
+  box.style.display = 'block'
+  if (user) {
+    document.getElementById('qr-wa-user').textContent = user.id || user.name || ''
+  }
+}
+
+// ── Pairing Code ──────────────────────────────────
+async function requestPairing() {
+  const phone = document.getElementById('pairing-phone').value.trim()
+  if (!phone) { toast('Masukkan nomor HP dulu', 'err'); return }
+  const btn = document.getElementById('pairing-btn')
+  btn.disabled = true; btn.textContent = 'Meminta kode...'
+  const res = document.getElementById('pairing-result')
+  res.style.display = 'none'
+  try {
+    const d = await apiJson('/api/admin/wa/pairing', { nomor: phone })
+    if (!d) { btn.disabled=false; btn.textContent='Kirim Kode'; return }
+    res.style.display = 'block'
+    if (d.status === 'ok') {
+      res.style.background = 'rgba(0,232,135,.08)'
+      res.style.border = '1px solid rgba(0,232,135,.2)'
+      res.style.color = 'var(--green)'
+      const code = d.code || ''
+      res.innerHTML = `
+        <div style="font-size:14px;font-weight:700;margin-bottom:8px">✅ Kode Pairing Berhasil!</div>
+        <div style="font-size:28px;font-weight:900;letter-spacing:8px;font-family:var(--mono);color:var(--ink);text-align:center;padding:12px;background:var(--bg);border-radius:8px;margin:8px 0">${code}</div>
+        <div style="font-size:12px;color:var(--ink2);margin-top:8px">Masukkan kode ini di WhatsApp → Linked Devices → Link with phone number instead</div>
+      `
+      toast('Kode pairing berhasil digenerate!', 'ok')
+      // Poll status setelah dapat kode
+      pollPairingStatus()
+    } else {
+      res.style.background = 'rgba(255,77,109,.08)'
+      res.style.border = '1px solid rgba(255,77,109,.2)'
+      res.style.color = 'var(--red)'
+      res.innerHTML = `<div style="font-weight:700">❌ Gagal</div><div style="font-size:12px;margin-top:4px">${escHtml(d.message||'Error tidak diketahui')}</div>`
+    }
+  } catch(e) {
+    res.style.display = 'block'
+    res.innerHTML = `<span style="color:var(--red)">Error: ${e.message}</span>`
+  }
+  btn.disabled = false; btn.textContent = 'Kirim Kode'
+}
+
+async function pollPairingStatus() {
+  // Poll sampai connected atau max 2 menit
+  let tries = 0
+  const iv = setInterval(async () => {
+    tries++
+    await loadWaStatus()
+    const badge = document.getElementById('wa-badge')
+    if (badge && badge.textContent.includes('Connected')) {
+      clearInterval(iv)
+      toast('WhatsApp berhasil connect! ✅', 'ok')
+      loadQR()
+    }
+    if (tries > 24) clearInterval(iv) // max 2 menit
+  }, 5000)
+}
+
+// ── WA Actions ─────────────────────────────────────
+async function waRestart() {
+  if (!confirm('Restart WA bot?')) return
+  const d = await apiJson('/api/admin/wa/restart', {})
+  if (!d) return
+  toast(d.message || (d.status==='ok'?'Restart dimulai':'Gagal'), d.status==='ok'?'ok':'err')
+  if (d.status === 'ok') setTimeout(loadWaStatus, 3000)
+}
+
+async function waLogout() {
+  if (!confirm('Logout dari WA bot? Kamu harus scan QR / pairing ulang!')) return
+  const d = await apiJson('/api/admin/wa/logout', {})
+  if (!d) return
+  toast(d.message || 'Logout berhasil', 'ok')
+  setTimeout(()=>{ loadWaStatus(); loadQR(); }, 2000)
+}
+
+// ── Test OTP ───────────────────────────────────────
+async function testOtp() {
+  const nomor = document.getElementById('test-nomor').value.trim()
+  if (!nomor) { toast('Masukkan nomor tujuan', 'err'); return }
+  const btn = document.getElementById('test-otp-btn')
+  btn.disabled = true; btn.textContent = 'Mengirim...'
+  const res = document.getElementById('test-otp-result')
+  try {
+    const d = await apiJson('/api/admin/wa/test-otp', { nomor })
+    if (!d) { btn.disabled=false; btn.textContent='Kirim Test'; return }
+    res.style.display = 'block'
+    if (d.status === 'ok') {
+      res.style.background = 'rgba(0,232,135,.08)'
+      res.style.border = '1px solid rgba(0,232,135,.2)'
+      res.style.color = 'var(--green)'
+      res.innerHTML = `✅ OTP terkirim ke ${escHtml(nomor)}${d.otp ? ` — OTP: <strong style="font-family:var(--mono)">${d.otp}</strong>` : ''}`
+      toast('OTP berhasil dikirim!', 'ok')
+    } else {
+      res.style.background = 'rgba(255,77,109,.08)'
+      res.style.border = '1px solid rgba(255,77,109,.2)'
+      res.style.color = 'var(--red)'
+      res.innerHTML = `❌ Gagal: ${escHtml(d.message || 'Unknown error')}`
+    }
+  } catch(e) {
+    res.style.display = 'block'
+    res.textContent = 'Error: ' + e.message
+    res.style.color = 'var(--red)'
+  }
+  btn.disabled = false; btn.textContent = 'Kirim Test'
+}
+
+// ── Users ──────────────────────────────────────────
 function filterUsers(){
   const q=document.getElementById('uSearch').value.toLowerCase();
   document.querySelectorAll('#uBody tr').forEach(tr=>{
@@ -85,6 +377,7 @@ function filterUsers(){
 }
 async function toggleUser(uid,cur){
   const d=await apiFetch(`/api/admin/user/${uid}/toggle`,{method:'POST'});
+  if(!d) return
   if(d.status==='ok'){
     toast(`User ${d.is_active?'diaktifkan':'dinonaktifkan'}`,'ok');
     setTimeout(()=>location.reload(),800);
@@ -93,11 +386,22 @@ async function toggleUser(uid,cur){
 async function deleteUser(uid,uname){
   if(!confirm(`Hapus user "${uname}"? Tidak bisa dibatalkan!`))return;
   const d=await apiFetch(`/api/admin/user/${uid}/delete`,{method:'POST'});
+  if(!d) return
   if(d.status==='ok'){
     toast(`User ${uname} dihapus`,'ok');
     const row=document.getElementById(`urow-${uid}`);
     if(row) row.remove();
   } else toast(d.message||'Gagal','err');
 }
+
+// ── Init ───────────────────────────────────────────
+loadWaStatus()
+loadQR()
+setInterval(loadWaStatus, 15000)
+// Auto refresh QR tiap 25 detik kalau QR sedang ditampilkan
+setInterval(()=>{
+  const img = document.getElementById('qr-img')
+  if (img && img.style.display !== 'none') loadQR()
+}, 25000)
 </script>
 {% endblock %}

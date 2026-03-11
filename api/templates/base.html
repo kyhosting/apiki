@@ -121,16 +121,24 @@ function toast(msg,type='info',dur=3500){
 }
 async function apiFetch(url,opts={}){
   const r=await fetch(url,{headers:{'Content-Type':'application/json'},...opts});
+  // Session Flask expired → redirect ke login
+  if(r.status===401){
+    const d=await r.json().catch(()=>({}));
+    if(d.redirect){window.location.href=d.redirect;return null;}
+    window.location.href='/login';return null;
+  }
   return r.json();
 }
 async function apiPost(url,data={}){
   const fd=new FormData();
   Object.entries(data).forEach(([k,v])=>fd.append(k,v));
   const r=await fetch(url,{method:'POST',body:fd});
+  if(r.status===401){window.location.href='/login';return null;}
   return r.json();
 }
 async function apiJson(url,data={}){
   const r=await fetch(url,{method:'POST',body:JSON.stringify(data),headers:{'Content-Type':'application/json'}});
+  if(r.status===401){window.location.href='/login';return null;}
   return r.json();
 }
 function timeAgo(iso){

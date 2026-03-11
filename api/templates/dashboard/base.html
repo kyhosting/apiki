@@ -154,43 +154,97 @@
 function openSb(){document.getElementById('sb').classList.add('open');document.getElementById('ov').classList.add('show')}
 function closeSb(){document.getElementById('sb').classList.remove('open');document.getElementById('ov').classList.remove('show')}
 
-// Poll iVAS status setiap 10 detik
+// ── iVAS Auto-Reconnect Heartbeat ──────────────────────────────
+let _ivasReconnecting = false;
+
 async function pollIvasStatus(){
   try {
-    const d = await apiFetch('/api/ivas/status');
-    const dot = document.getElementById('sb-ivas-dot');
-    const lbl = document.getElementById('sb-ivas-label');
-    const em  = document.getElementById('sb-ivas-email');
-    const pill= document.getElementById('ivas-pill');
-    const wsInd=document.getElementById('ws-indicator');
-    const liveCount=document.getElementById('live-count');
+    // Gunakan /api/session/check sebagai heartbeat utama
+    const r = await fetch('/api/session/check');
+
+    // 401 = Flask session expired → redirect ke login
+    if(r.status === 401){
+      toast('Session expired. Redirecting...','err');
+      setTimeout(()=>{ window.location.href='/login'; }, 1500);
+      return;
+    }
+
+    const d = await r.json().catch(()=>null);
+    if(!d) return;
+
+    const dot   = document.getElementById('sb-ivas-dot');
+    const lbl   = document.getElementById('sb-ivas-label');
+    const em    = document.getElementById('sb-ivas-email');
+    const pill  = document.getElementById('ivas-pill');
+    const wsInd = document.getElementById('ws-indicator');
+    const liveCount = document.getElementById('live-count');
 
     if(d.ivas_connected){
       dot.className='dot dot-green';
-      lbl.textContent=`iVAS: Connected`;
-      em.textContent= d.ivas_email?d.ivas_email.split('@')[0]:'';
-      if(pill){pill.textContent='✓';pill.style.display='inline-block'}
+      lbl.textContent='iVAS: Connected';
+      em.textContent= d.ivas_email ? d.ivas_email.split('@')[0] : '';
+      if(pill){pill.textContent='✓';pill.style.display='inline-block';}
+      _ivasReconnecting = false;
+
+      // WS indicator
+      const wsOk = d.ws_test_connected || d.ws_live_connected;
+      wsInd.innerHTML = wsOk
+        ? `<span class="dot dot-green" style="margin-right:4px"></span><span style="color:var(--green);font-size:11px">WS Live</span>`
+        : `<span style="color:var(--ink3);font-size:11px">WS Off</span>`;
+
+      const cached = (d.ws_live_cached||0) + (d.ws_test_cached||0);
+      if(cached > 0){
+        liveCount.textContent = cached;
+        liveCount.style.display='inline-block';
+      } else {
+        liveCount.style.display='none';
+      }
+
     } else {
+      // iVAS disconnected → coba auto reconnect (sekali, tidak loop spam)
       dot.className='dot dot-red dot-pulse';
-      lbl.textContent='iVAS: Disconnected';
-      em.textContent='Klik untuk login';
+      lbl.textContent='iVAS: Reconnecting...';
+      em.textContent='Auto reconnect...';
       if(pill) pill.style.display='none';
-    }
-    if(d.ws_connected){
-      wsInd.innerHTML=`<span class="dot dot-green"></span> WS Live`;
-    } else {
       wsInd.textContent='';
+
+      if(!_ivasReconnecting){
+        _ivasReconnecting = true;
+        try {
+          const rc = await fetch('/api/ivas/auto-reconnect', {method:'POST'});
+          const rd = await rc.json().catch(()=>null);
+          if(rd && rd.status==='ok'){
+            lbl.textContent='iVAS: Connected';
+            dot.className='dot dot-green';
+            em.textContent = rd.email ? rd.email.split('@')[0] : 'OK';
+            toast('iVAS reconnect berhasil ✓','ok');
+            _ivasReconnecting = false;
+          } else if(rd && rd.need_login){
+            // Belum ada kredensial tersimpan
+            lbl.textContent='iVAS: Disconnected';
+            dot.className='dot dot-red dot-pulse';
+            em.textContent='Klik untuk login';
+            _ivasReconnecting = false;
+          } else {
+            lbl.textContent='iVAS: Reconnect gagal';
+            em.textContent='Retry dalam 30s...';
+            // Reset flag setelah 30 detik biar coba lagi
+            setTimeout(()=>{ _ivasReconnecting = false; }, 30000);
+          }
+        } catch(e){
+          _ivasReconnecting = false;
+        }
+      }
     }
-    if(d.ws_cached_sms>0){
-      liveCount.textContent=d.ws_cached_sms;
-      liveCount.style.display='inline-block';
-    } else {
-      liveCount.style.display='none';
-    }
-  } catch(e){}
+  } catch(e){
+    // Network error — jangan crash
+    console.warn('[heartbeat] error:', e);
+  }
 }
+
+// Mulai heartbeat: langsung + setiap 8 detik
 pollIvasStatus();
-setInterval(pollIvasStatus, 10000);
+setInterval(pollIvasStatus, 8000);
 </script>
 {% block scripts %}{% endblock %}
 {% endblock %}
