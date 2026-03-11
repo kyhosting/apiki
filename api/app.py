@@ -1757,22 +1757,23 @@ def api_ivas_logout():
 @app.route("/api/ivas/auto-reconnect", methods=["POST"])
 @login_required
 def api_ivas_auto_reconnect():
-    """Auto reconnect iVAS pakai kredensial tersimpan — dipanggil dari frontend saat detect disconnect."""
+    """Auto reconnect iVAS pakai kredensial tersimpan.
+    Selalu login ulang — tidak skip meski session tampak ada,
+    karena di Vercel serverless session memory bisa kosong tiap request.
+    """
     uid = session["uid"]
     c = db()
     u = c.execute("SELECT ivas_email,ivas_pass FROM ky_users WHERE id=? AND is_active=1",(uid,)).fetchone()
     c.close()
     if not u or not u["ivas_email"] or not u["ivas_pass"]:
         return jsonify({"status":"error","message":"Belum ada kredensial iVAS. Login manual dulu.","need_login":True}), 400
-    # Cek kalau sudah connected
-    sess = get_ivas_session(uid)
-    if sess and sess.get("ok"):
-        return jsonify({"status":"ok","message":"iVAS sudah connected","already_connected":True})
-    logger.info(f"[AUTO-RECONNECT] user={uid} mencoba reconnect iVAS...")
+    logger.info(f"[AUTO-RECONNECT] user={uid} reconnect iVAS ({u['ivas_email']})...")
     result = ivas_login(uid, u["ivas_email"], u["ivas_pass"])
     if result.get("ok"):
         threading.Thread(target=ws_start_all, args=(uid,), daemon=True).start()
+        logger.info(f"[AUTO-RECONNECT] user={uid} BERHASIL")
         return jsonify({"status":"ok","message":"iVAS reconnect berhasil","email":u["ivas_email"]})
+    logger.warning(f"[AUTO-RECONNECT] user={uid} GAGAL: {result.get('error')}")
     return jsonify({"status":"error","message":f"Reconnect gagal: {result.get('error','Unknown error')}"}), 500
 
 @app.route("/api/session/check")

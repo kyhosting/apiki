@@ -36,7 +36,10 @@
 .stat-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;background:var(--bg2);border:1px solid var(--border)}
 .err-box{padding:12px 16px;border-radius:10px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);color:#ef4444;font-size:13px;margin:12px 14px}
 .iv-empty{text-align:center;padding:44px;color:var(--ink3);font-size:13px}
-.tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y;cursor:grab;position:relative}
+.tbl-scroll:active{cursor:grabbing}
+/* Scroll hint shadow kanan kalau ada konten tersembunyi */
+.tbl-scroll{background:linear-gradient(to right,transparent calc(100% - 20px),rgba(245,158,11,.08)) local,linear-gradient(to right,rgba(0,0,0,.15),transparent) scroll}
 .cb{width:15px;height:15px;cursor:pointer;accent-color:#f59e0b}
 
 /* ── Range Details Modal ── */
@@ -180,22 +183,46 @@
 
 <script>
 // ── Local helpers (avoids base.html timing issue with apiFetch) ──
+
+// Track apakah sedang proses reconnect supaya tidak double-trigger
+let _reconnecting = false
+
+async function _triggerReconnect() {
+  if (_reconnecting) return
+  _reconnecting = true
+  showToast('⚠️ Session iVAS expired — login ulang otomatis...', 'warn')
+  try {
+    const r = await fetch('/api/ivas/auto-reconnect', {method:'POST'})
+    const d = await r.json()
+    if (d.status === 'ok') {
+      showToast('✅ iVAS reconnect berhasil! Memuat ulang data...', 'ok')
+      // Reload data setelah reconnect sukses
+      setTimeout(() => { loadMy(); if(_testLoaded) loadTest(); }, 800)
+    } else if (d.need_login) {
+      showToast('❌ Belum set kredensial iVAS. Pergi ke halaman Login iVAS.', 'error')
+      setTimeout(() => { window.location.href = '/dashboard/ivas-login' }, 2000)
+    } else {
+      showToast('❌ Reconnect gagal: ' + (d.message||'Unknown'), 'error')
+    }
+  } catch(e) {
+    showToast('❌ Gagal reconnect: ' + e.message, 'error')
+  } finally {
+    _reconnecting = false
+  }
+}
+
 async function _apiFetch(url, opts={}) {
-  // FIX: jangan paksa Content-Type JSON untuk semua request
-  // POST tanpa body pakai default, biar backend baca dari query string
   const r = await fetch(url, opts)
   if (r.status === 401) {
     // 401 = session APP expired → redirect ke login APP
     window.location.href = '/login'; return null
   }
   if (r.status === 403) {
-    // FIX: 403 = iVAS session expired, BUKAN logout app
-    // Jangan redirect ke /login, cukup tampilkan toast dan return data
+    // 403 = iVAS session expired, BUKAN logout app
     let d = {}; try { d = await r.json() } catch {}
     if (d.ivas_expired) {
-      showToast('⚠️ Session iVAS expired — otomatis login ulang, refresh sebentar', 'warn')
-      // Trigger auto re-login di background
-      setTimeout(() => fetch('/api/ivas/status').catch(()=>{}), 500)
+      // Trigger auto re-login ke endpoint yang benar
+      _triggerReconnect()
     }
     return d
   }
@@ -427,6 +454,20 @@ function showToast(msg,type='ok'){
   setTimeout(()=>el.remove(), type==='warn'?5000:3000);
 }
 
-loadMy();
+// Init: cek iVAS session dulu sebelum load data
+// Kalau tidak connected → auto reconnect dulu, baru loadMy
+async function _initPage() {
+  try {
+    const r = await fetch('/api/ivas/status')
+    if (r.status === 401) { window.location.href='/login'; return }
+    const d = await r.json()
+    if (!d.ivas_connected) {
+      await _triggerReconnect()
+      return  // _triggerReconnect akan panggil loadMy() setelah sukses
+    }
+  } catch(e) { console.warn('Init check error:', e) }
+  loadMy()
+}
+_initPage()
 </script>
 {% endblock %}
