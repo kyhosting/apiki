@@ -1,190 +1,220 @@
 {% extends "dashboard/base.html" %}
-{% block page_title %}SMS Live{% endblock %}
+{% block page_title %}Live SMS{% endblock %}
 {% block content %}
+<style>
+.iv-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.iv-banner{background:#f59e0b;padding:10px 18px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#fff}
+/* two-col layout */
+.live-wrap{display:grid;grid-template-columns:1fr 220px;min-height:400px}
+.live-left{border-right:1px solid var(--border);overflow-x:auto}
+.live-right{padding:14px;overflow-y:auto;max-height:600px}
+.live-right-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);margin-bottom:10px}
+/* main table */
+.ltbl{width:100%;border-collapse:collapse}
+.ltbl thead th{padding:8px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);background:var(--bg2);border-bottom:2px solid var(--border);white-space:nowrap}
+.ltbl tbody td{padding:10px 14px;border-bottom:1px solid var(--border);font-size:12.5px;vertical-align:middle}
+.ltbl tbody tr:hover td{background:rgba(245,158,11,.05)}
+.ltbl tbody tr:last-child td{border-bottom:none}
+/* counters topbar */
+.live-topbar{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--border);background:var(--bg2);flex-wrap:wrap}
+.live-cnt{font-size:12px;color:var(--ink2);font-family:var(--mono)}
+.live-cnt b{color:var(--accent)}
+.badge-pill{background:rgba(34,197,94,.12);color:#22c55e;font-size:11px;font-weight:700;padding:2px 9px;border-radius:8px;font-family:var(--mono)}
+.badge-pill.red{background:rgba(239,68,68,.12);color:#ef4444}
+.badge-pill.gray{background:var(--card2);color:var(--ink3)}
+/* right-panel range items */
+.rng-item{padding:8px 12px;border-radius:8px;background:var(--card2);border:1px solid var(--border);margin-bottom:6px;cursor:pointer;transition:.12s}
+.rng-item:hover{border-color:var(--accent)}
+.rng-item-name{font-size:12px;font-weight:600;color:var(--ink)}
+.rng-item-cnt{font-size:11px;font-family:var(--mono);color:var(--ink3);margin-top:2px}
+.rng-item.active{border-color:#f59e0b;background:rgba(245,158,11,.08)}
+/* msg cell */
+.msg-text{max-width:340px;word-break:break-word;line-height:1.5}
+.sid-pill{background:#f59e0b;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:5px;display:inline-block;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.paid-badge{background:rgba(34,197,94,.13);color:#22c55e;font-size:10px;font-weight:700;padding:1px 7px;border-radius:5px}
+.unpaid-badge{background:rgba(239,68,68,.13);color:#ef4444;font-size:10px;font-weight:700;padding:1px 7px;border-radius:5px}
+.limit-badge{font-size:11px;color:var(--ink3);font-family:var(--mono)}
+.iv-empty{text-align:center;padding:44px;color:var(--ink3);font-size:13px}
+/* controls */
+.ctrl-bar{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.ctrl-inp{padding:6px 11px;border:1px solid var(--border2);border-radius:7px;background:var(--card);color:var(--ink);font-size:12px;width:160px}
+.ctrl-btn{background:var(--accent);color:#fff;border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;transition:.15s}
+.ctrl-btn:hover{opacity:.85}
+.ctrl-btn.red{background:#ef4444}
+.ctrl-btn.gray{background:var(--card2);color:var(--ink2);border:1px solid var(--border2)}
+.ctrl-btn.gray:hover{background:var(--border)}
+.dot-live{width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;box-shadow:0 0 6px #22c55e;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@media(max-width:640px){.live-wrap{grid-template-columns:1fr}.live-right{border-top:1px solid var(--border)}}
+</style>
+
 <div class="page-hdr">
-  <div class="page-title">⚡ SMS Live</div>
-  <div class="page-sub">SMS masuk real-time langsung dari WebSocket iVAS</div>
+  <div class="page-title">📡 Live SMS</div>
+  <div class="page-sub">SMS masuk ke nomor kamu secara real-time</div>
 </div>
 
-<!-- Controls -->
-<div class="card" style="margin-bottom:14px">
-  <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end">
-    <div>
-      <div class="form-label" style="margin-bottom:4px">Filter SID/Platform</div>
-      <input type="text" id="sidFilter" class="form-input" placeholder="Contoh: WhatsApp, Telegram" style="width:200px" oninput="renderTable()"/>
-    </div>
-    <div>
-      <div class="form-label" style="margin-bottom:4px">Filter Pengirim</div>
-      <input type="text" id="origFilter" class="form-input" placeholder="Nomor pengirim..." style="width:180px" oninput="renderTable()"/>
-    </div>
-    <div>
-      <div class="form-label" style="margin-bottom:4px">Limit</div>
-      <select id="limitSel" class="form-input" style="width:80px">
-        <option value="50" selected>50</option><option value="100">100</option><option value="200">200</option>
-      </select>
-    </div>
-    <button class="btn btn-primary" onclick="pollNow()">⟳ Refresh</button>
-    <button class="btn btn-outline" id="sseBtn" onclick="toggleSSE()">📡 SSE OFF</button>
-    <button class="btn btn-outline btn-sm" onclick="clearCache()">🗑 Clear Cache</button>
-    <span id="statusTxt" style="font-size:12px;color:var(--ink2);align-self:center;font-family:var(--mono)"></span>
+<div class="iv-card">
+  <div class="iv-banner">
+    <span class="dot-live"></span>
+    Live SMS
+    <span id="liveCntLabel" style="margin-left:auto;font-size:11px;font-weight:400;opacity:.85">0 SMS Today</span>
   </div>
-</div>
 
-<!-- Summary bar -->
-<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-  <div style="display:flex;align-items:center;gap:14px;font-size:13px">
-    <span style="color:var(--ink2)">Total: <strong id="cntAll" style="color:var(--ink)">0</strong></span>
-    <span style="color:var(--ink2)">Paid: <strong id="cntPaid" style="color:var(--green)">0</strong></span>
-    <span style="color:var(--ink2)">Unpaid: <strong id="cntUnpaid" style="color:var(--ink3)">0</strong></span>
-    <span id="sseStatus" style="color:var(--ink3);font-size:11px;font-family:var(--mono)"></span>
+  <!-- controls -->
+  <div class="ctrl-bar">
+    <input type="text" id="sidFilter" class="ctrl-inp" placeholder="Filter by SID/service..." oninput="applyFilter()"/>
+    <input type="text" id="numFilter" class="ctrl-inp" placeholder="Filter by number..." oninput="applyFilter()"/>
+    <button class="ctrl-btn" onclick="doRefresh()">↻ Refresh</button>
+    <button class="ctrl-btn gray" onclick="doClear()">✕ Clear</button>
+    <span id="autoLabel" style="font-size:11px;color:var(--ink3);margin-left:auto">
+      <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
+        <input type="checkbox" id="autoRefresh" checked onchange="toggleAuto()"/>
+        <span>Auto-refresh 10s</span>
+      </label>
+    </span>
   </div>
-  <div>
-    <button class="btn btn-outline btn-xs" onclick="exportCsv()">↓ Export CSV</button>
-  </div>
-</div>
 
-<!-- Table -->
-<div class="tbl-wrap">
-  <table>
-    <thead>
-      <tr>
-        <th>Waktu</th>
-        <th>Pengirim</th>
-        <th>Penerima</th>
-        <th>SID</th>
-        <th>Range</th>
-        <th>Pesan</th>
-        <th>Status</th>
-        <th>Source</th>
-      </tr>
-    </thead>
-    <tbody id="smsBody">
-      <tr><td colspan="8" style="text-align:center;padding:36px;color:var(--ink2)">
-        Belum ada SMS. Pastikan sudah <a href="/dashboard/ivas-login" style="color:var(--accent)">login iVAS</a> dan WebSocket terhubung.
-      </td></tr>
-    </tbody>
-  </table>
+  <!-- topbar stats -->
+  <div class="live-topbar">
+    <span class="live-cnt">Total: <b id="cntTotal">0</b></span>
+    <span class="live-cnt">Today: <b id="cntToday">0</b></span>
+    <span id="wsStat" class="badge-pill gray">⬤ Connecting...</span>
+    <span id="srcLabel" style="font-size:11px;color:var(--ink3);margin-left:auto"></span>
+  </div>
+
+  <!-- two-col body -->
+  <div class="live-wrap">
+    <!-- left: SMS table -->
+    <div class="live-left">
+      <table class="ltbl">
+        <thead>
+          <tr>
+            <th>Live SMS</th>
+            <th>SID</th>
+            <th>Paid</th>
+            <th>Limit</th>
+            <th style="width:40%">Message Content</th>
+          </tr>
+        </thead>
+        <tbody id="liveBody">
+          <tr><td colspan="5" class="iv-empty"><span class="spin"></span> Memuat...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- right: ranges panel -->
+    <div class="live-right">
+      <div class="live-right-title">My Numbers</div>
+      <div id="rngPanel">
+        <div class="rng-item"><div class="rng-item-name">Loading...</div></div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
-let allSms=[], sseConn=null, polling=null;
+let _allSms = [];
+let _autoTimer = null;
 
-async function pollNow(){
-  const limit=document.getElementById('limitSel').value;
-  const st=document.getElementById('statusTxt');
-  st.innerHTML='<span class="spin"></span> Memuat...';
-  try{
-    const d=await apiFetch(`/api/sms/live?limit=${limit}`);
-    if(d.sms?.length){
-      mergeSms(d.sms);
-      st.textContent=`✓ ${d.total} SMS · ${new Date().toLocaleTimeString('id-ID')}`;
+async function doRefresh() {
+  const sidF = document.getElementById('sidFilter').value.trim().toLowerCase();
+  const numF = document.getElementById('numFilter').value.trim();
+  const params = new URLSearchParams({limit:200});
+  if (sidF) params.set('sid', sidF);
+  if (numF) params.set('number', numF);
+
+  try {
+    const d = await apiFetch(`/api/sms/live?${params}`);
+    _allSms = d.sms || [];
+    renderTable(_allSms);
+    updateStats(d);
+    // update ws status
+    const ws = document.getElementById('wsStat');
+    if (d.source === 'websocket_live_cache') {
+      ws.textContent = '⬤ WS Live'; ws.className='badge-pill';
     } else {
-      st.textContent=`Tidak ada SMS baru · ${new Date().toLocaleTimeString('id-ID')}`;
+      ws.textContent = '⬤ Scrape'; ws.className='badge-pill gray';
     }
-  }catch(e){st.textContent='✗ Gagal memuat'}
+    document.getElementById('srcLabel').textContent = d.source||'';
+  } catch(e) {
+    console.error(e);
+  }
 }
 
-function mergeSms(incoming){
-  // Deduplicate by (originator+message+received_at)
-  incoming.forEach(s=>{
-    const key=`${s.originator}|${s.message}|${s.received_at}`;
-    if(!allSms.find(x=>`${x.originator}|${x.message}|${x.received_at}`===key)){
-      allSms.unshift(s);
-    }
-  });
-  // Keep latest 500
-  allSms=allSms.slice(0,500);
-  renderTable();
-}
-
-function renderTable(){
-  const sid=document.getElementById('sidFilter').value.toLowerCase();
-  const orig=document.getElementById('origFilter').value.toLowerCase();
-  let list=allSms;
-  if(sid) list=list.filter(s=>(s.sid||'').toLowerCase().includes(sid));
-  if(orig) list=list.filter(s=>(s.originator||'').toLowerCase().includes(orig));
-
-  const paid=list.filter(s=>s.paid==='Paid').length;
-  document.getElementById('cntAll').textContent=list.length;
-  document.getElementById('cntPaid').textContent=paid;
-  document.getElementById('cntUnpaid').textContent=list.length-paid;
-
-  const body=document.getElementById('smsBody');
-  if(!list.length){
-    body.innerHTML=`<tr><td colspan="8" style="text-align:center;padding:28px;color:var(--ink2)">Belum ada SMS sesuai filter</td></tr>`;
+function renderTable(sms) {
+  const body = document.getElementById('liveBody');
+  if (!sms.length) {
+    body.innerHTML='<tr><td colspan="5" class="iv-empty">Belum ada SMS. Tunggu atau klik Refresh.</td></tr>';
     return;
   }
-  body.innerHTML=list.map(s=>{
-    const ts=s.received_at?new Date(s.received_at).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):'-';
-    const paidBadge=s.paid==='Paid'
-      ?'<span class="badge badge-green">Paid</span>'
-      :'<span class="badge badge-gray">Unpaid</span>';
-    const srcBadge=s.source?.includes('catchall')
-      ?'<span class="badge badge-orange">catchall</span>'
-      :`<span class="badge badge-purple">${escHtml(s.source||'ws')}</span>`;
-    return `<tr>
-      <td style="font-family:var(--mono);font-size:11px;white-space:nowrap;color:var(--ink2)">${ts}</td>
-      <td style="font-family:var(--mono);font-size:12px;font-weight:600">${escHtml(s.originator||'-')}</td>
-      <td style="font-family:var(--mono);font-size:12px;color:var(--ink2)">${escHtml(s.recipient||'-')}</td>
-      <td><span class="badge badge-blue">${escHtml(s.sid||'-')}</span></td>
-      <td style="font-size:12px;color:var(--ink2)">${escHtml(s.range||'-')}</td>
-      <td style="max-width:280px;word-break:break-word;font-size:13px">${escHtml(s.message||'-')}</td>
-      <td>${paidBadge}</td>
-      <td>${srcBadge}</td>
-    </tr>`;
-  }).join('');
+  body.innerHTML = sms.map(s=>`
+  <tr>
+    <td style="font-family:var(--mono);font-size:12px;color:var(--ink2);white-space:nowrap">${escHtml(s.number||s.originator||'')}</td>
+    <td>${s.sid?`<span class="sid-pill">${escHtml(s.sid)}</span>`:'-'}</td>
+    <td>${s.paid==='Paid'?'<span class="paid-badge">Paid</span>':'<span class="unpaid-badge">Unpaid</span>'}</td>
+    <td><span class="limit-badge">${s.in_limit===false?'Over':'In'}</span></td>
+    <td class="msg-text">${escHtml(s.message||'')}</td>
+  </tr>`).join('');
+  document.getElementById('cntTotal').textContent = sms.length;
+  document.getElementById('liveCntLabel').textContent = sms.length + ' SMS Today';
 }
 
-function toggleSSE(){
-  const btn=document.getElementById('sseBtn');
-  const st=document.getElementById('sseStatus');
-  if(sseConn){
-    sseConn.close(); sseConn=null;
-    btn.textContent='📡 SSE OFF'; btn.className='btn btn-outline';
-    st.textContent='';
-    if(polling){clearInterval(polling);polling=null}
-  } else {
-    const limit=document.getElementById('limitSel').value;
-    sseConn=new EventSource(`/api/sms/live/stream`);
-    sseConn.onmessage=e=>{
-      if(!e.data||e.data.includes('"connected"'))return;
-      try{
-        const sms=JSON.parse(e.data);
-        if(sms.type==='connected')return;
-        mergeSms([sms]);
-        st.textContent=`● SSE · terakhir: ${new Date().toLocaleTimeString('id-ID')}`;
-      }catch(err){}
-    };
-    sseConn.onerror=()=>{st.textContent='SSE terputus';};
-    btn.textContent='📡 SSE ON'; btn.className='btn btn-primary';
-    st.innerHTML='<span class="dot dot-green dot-pulse"></span> SSE aktif';
-    // Juga poll sekali dulu buat isi cache existing
-    pollNow();
+function updateStats(d) {
+  document.getElementById('cntToday').textContent = (d.sms||[]).length;
+}
+
+function applyFilter() {
+  const sidF = document.getElementById('sidFilter').value.trim().toLowerCase();
+  const numF = document.getElementById('numFilter').value.trim();
+  let filtered = _allSms;
+  if (sidF) filtered = filtered.filter(s=>(s.sid||'').toLowerCase().includes(sidF)||(s.message||'').toLowerCase().includes(sidF));
+  if (numF) filtered = filtered.filter(s=>(s.number||'').includes(numF)||(s.originator||'').includes(numF));
+  renderTable(filtered);
+}
+
+async function doClear() {
+  await apiFetch('/api/sms/live/clear', {method:'POST'});
+  _allSms = [];
+  renderTable([]);
+  document.getElementById('cntTotal').textContent='0';
+  document.getElementById('cntToday').textContent='0';
+}
+
+function toggleAuto() {
+  if (_autoTimer) { clearInterval(_autoTimer); _autoTimer=null; }
+  if (document.getElementById('autoRefresh').checked) {
+    _autoTimer = setInterval(doRefresh, 10000);
   }
 }
 
-async function clearCache(){
-  if(!confirm('Kosongkan cache SMS live?'))return;
-  await apiFetch('/api/sms/live/clear',{method:'POST'});
-  allSms=[];renderTable();
-  document.getElementById('statusTxt').textContent='Cache dikosongkan';
-  toast('Cache SMS live dikosongkan','ok');
+async function loadRanges() {
+  const panel = document.getElementById('rngPanel');
+  try {
+    const d = await apiFetch('/api/numbers/my-list?limit=200');
+    const nums = d.numbers||[];
+    // group by range
+    const rngs = {};
+    for (const n of nums) {
+      const r = n.range_name||'Unknown';
+      if (!rngs[r]) rngs[r] = 0;
+      rngs[r]++;
+    }
+    if (!Object.keys(rngs).length) {
+      panel.innerHTML='<div style="font-size:12px;color:var(--ink3)">Belum ada nomor.</div>'; return;
+    }
+    panel.innerHTML = Object.entries(rngs).map(([r,c])=>`
+    <div class="rng-item">
+      <div class="rng-item-name">${escHtml(r)}</div>
+      <div class="rng-item-cnt">${c} number${c>1?'s':''}</div>
+    </div>`).join('');
+  } catch(e) {
+    panel.innerHTML='<div style="font-size:12px;color:#ef4444">Error load ranges</div>';
+  }
 }
 
-function exportCsv(){
-  const sid=document.getElementById('sidFilter').value.toLowerCase();
-  let list=allSms;
-  if(sid) list=list.filter(s=>(s.sid||'').toLowerCase().includes(sid));
-  const rows=[['Waktu','Pengirim','Penerima','SID','Range','Pesan','Status','Source']];
-  list.forEach(s=>rows.push([s.received_at,s.originator,s.recipient,s.sid,s.range,`"${(s.message||'').replace(/"/g,'""')}"`,s.paid,s.source]));
-  const blob=new Blob([rows.map(r=>r.join(',')).join('\n')],{type:'text/csv'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-  a.download=`sms-live-${new Date().toISOString().slice(0,10)}.csv`;a.click();
-}
-
-// Load awal
-pollNow();
-// Auto poll setiap 8 detik
-polling=setInterval(pollNow,8000);
+// init
+doRefresh();
+loadRanges();
+_autoTimer = setInterval(doRefresh, 10000);
 </script>
 {% endblock %}

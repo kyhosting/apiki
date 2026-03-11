@@ -1,154 +1,334 @@
 {% extends "dashboard/base.html" %}
 {% block page_title %}My Numbers{% endblock %}
 {% block content %}
-<div class="page-hdr"><div class="page-title">☎ My Numbers</div><div class="page-sub">Kelola nomor di akun iVAS — lihat, tambah, dan hapus nomor</div></div>
+<style>
+.iv-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:18px}
+.iv-banner{background:#f59e0b;padding:10px 18px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#fff}
+/* tabs */
+.tabs{display:flex;border-bottom:2px solid var(--border);background:var(--bg2)}
+.tab{padding:11px 22px;font-size:13px;font-weight:600;color:var(--ink3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:.12s}
+.tab:hover{color:var(--ink)}
+.tab.active{color:#f59e0b;border-bottom-color:#f59e0b}
+/* toolbar */
+.tbar{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border);background:var(--bg2);flex-wrap:wrap}
+.srch-inp{padding:7px 12px;border:1px solid var(--border2);border-radius:8px;background:var(--card);color:var(--ink);font-size:13px;width:220px}
+.show-sel{padding:6px 10px;border:1px solid var(--border2);border-radius:7px;background:var(--card);color:var(--ink);font-size:12px}
+.tbar-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.btn-sm{padding:6px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:.15s}
+.btn-reload{background:var(--accent);color:#fff}.btn-reload:hover{opacity:.85}
+.btn-export{background:var(--card2);color:var(--ink2);border:1px solid var(--border2)}.btn-export:hover{background:var(--border)}
+/* main table */
+.ntbl{width:100%;border-collapse:collapse}
+.ntbl thead th{padding:8px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);background:var(--bg2);border-bottom:2px solid var(--border);white-space:nowrap}
+.ntbl thead th.center{text-align:center}
+.ntbl tbody td{padding:9px 14px;border-bottom:1px solid var(--border);font-size:13px;color:var(--ink)}
+.ntbl tbody tr:hover td{background:rgba(245,158,11,.04)}
+.ntbl tbody tr:last-child td{border-bottom:none}
+.num-cell{font-family:var(--mono);font-weight:600}
+.rng-cell{font-size:12px;color:var(--ink2)}
+.rate-cell{font-family:var(--mono);font-size:12px;color:var(--ink2);text-align:center}
+.lim-cell{font-family:var(--mono);font-size:12px;text-align:center;color:var(--ink2)}
+/* action buttons */
+.btn-del{background:rgba(239,68,68,.13);color:#ef4444;border:1px solid rgba(239,68,68,.25);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;transition:.12s}
+.btn-del:hover{background:#ef4444;color:#fff}
+.btn-add{background:rgba(34,197,94,.13);color:#22c55e;border:1px solid rgba(34,197,94,.25);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;transition:.12s}
+.btn-add:hover{background:#22c55e;color:#fff}
+.btn-add:disabled{opacity:.4;cursor:not-allowed}
+/* pagination */
+.pager{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-top:1px solid var(--border);background:var(--bg2);font-size:12px;color:var(--ink3);flex-wrap:wrap;gap:8px}
+.pg-btns{display:flex;gap:4px}
+.pg-btn{padding:4px 10px;border-radius:6px;border:1px solid var(--border2);background:var(--card);color:var(--ink2);font-size:12px;cursor:pointer;transition:.1s}
+.pg-btn:hover{background:var(--border)}.pg-btn.active{background:#f59e0b;color:#fff;border-color:#f59e0b}
+.iv-empty{text-align:center;padding:44px;color:var(--ink3);font-size:13px}
+.cb{cursor:pointer;accent-color:#f59e0b}
+/* toast */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 18px;font-size:13px;font-weight:500;color:var(--ink);box-shadow:0 4px 20px rgba(0,0,0,.2);z-index:999;transform:translateY(20px);opacity:0;transition:.3s;pointer-events:none}
+.toast.show{transform:none;opacity:1}
+.toast.ok{border-left:3px solid #22c55e}
+.toast.err{border-left:3px solid #ef4444}
+</style>
 
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
-  <!-- Add number -->
-  <div class="card">
-    <div class="card-header"><div class="card-title">➕ Tambah Nomor</div></div>
-    <div class="form-group">
-      <label class="form-label">Mode tambah</label>
-      <select id="addMode" class="form-input" onchange="toggleAddMode()">
-        <option value="range">Per Range (tambah semua)</option>
-        <option value="number">Per Nomor Spesifik</option>
-        <option value="tid">Per Termination ID</option>
-      </select>
-    </div>
-    <div id="addRangeGrp" class="form-group">
-      <label class="form-label">Nama Range</label>
-      <input type="text" id="addRange" class="form-input" placeholder="Contoh: INDONESIA"/>
-      <div class="form-hint">Semua nomor dalam range ini akan ditambahkan</div>
-    </div>
-    <div id="addNumGrp" class="form-group" style="display:none">
-      <label class="form-label">Nomor Telepon</label>
-      <input type="text" id="addNum" class="form-input" placeholder="Contoh: 628123456789" style="font-family:var(--mono)"/>
-    </div>
-    <div id="addTidGrp" class="form-group" style="display:none">
-      <label class="form-label">Termination ID</label>
-      <input type="text" id="addTid" class="form-input" placeholder="Contoh: 82774" style="font-family:var(--mono)"/>
-    </div>
-    <button class="btn btn-primary" onclick="doAdd()" style="width:100%">➕ Tambah Nomor</button>
-    <div id="addResult" style="margin-top:10px;font-size:13px"></div>
+<div class="page-hdr">
+  <div class="page-title">📞 Numbers</div>
+  <div class="page-sub">Kelola nomor kamu dan tambah dari Test Numbers</div>
+</div>
+
+<!-- Tabs -->
+<div class="iv-card">
+  <div class="tabs">
+    <div class="tab active" id="tab-my"   onclick="switchTab('my')">My Numbers</div>
+    <div class="tab"        id="tab-test" onclick="switchTab('test')">Add Number (Test Numbers)</div>
   </div>
 
-  <!-- Delete number -->
-  <div class="card">
-    <div class="card-header"><div class="card-title">🗑 Hapus / Return Nomor</div></div>
-    <div class="form-group">
-      <label class="form-label">Nomor atau Termination ID</label>
-      <input type="text" id="delInput" class="form-input" placeholder="Nomor atau termination ID" style="font-family:var(--mono)"/>
-      <div class="form-hint">Masukkan nomor telepon atau termination ID yang mau dihapus</div>
+  <!-- MY NUMBERS -->
+  <div id="pane-my">
+    <div class="iv-banner">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 01-2.18 2A19.86 19.86 0 013.08 4.18 2 2 0 015.07 2h3a2 2 0 012 1.72c.13 1 .37 1.98.72 2.92a2 2 0 01-.45 2.11L9.09 9.91a16 16 0 006.99 7l1.16-1.16a2 2 0 012.11-.45c.94.35 1.91.59 2.91.72A2 2 0 0122 17z"/></svg>
+      My Numbers
+      <span id="myCount" style="margin-left:auto;font-size:11px;font-weight:400;opacity:.85">-</span>
     </div>
-    <button class="btn btn-danger" onclick="doDelete()" style="width:100%">🗑 Hapus Nomor</button>
-    <div id="delResult" style="margin-top:10px;font-size:13px"></div>
+    <div class="tbar">
+      <input type="text" id="mySearch" class="srch-inp" placeholder="Search numbers..." oninput="filterMy()"/>
+      <select id="myShow" class="show-sel" onchange="renderMy()">
+        <option value="20">Show 20</option>
+        <option value="50">Show 50</option>
+        <option value="100">Show 100</option>
+      </select>
+      <div class="tbar-right">
+        <button class="btn-sm btn-export" onclick="exportMyCSV()">↓ Export Excel</button>
+        <button class="btn-sm btn-reload" onclick="loadMy()">↻ Reload</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="ntbl">
+        <thead>
+          <tr>
+            <th style="width:36px"><input type="checkbox" class="cb" id="myChkAll" onchange="toggleAllMy(this)"/></th>
+            <th>Number</th>
+            <th>Range Name</th>
+            <th class="center">Rates</th>
+            <th class="center">Limit by Range</th>
+            <th class="center">SID/Range Limit</th>
+            <th class="center">SID→DID Limit</th>
+            <th class="center">Action</th>
+          </tr>
+        </thead>
+        <tbody id="myBody">
+          <tr><td colspan="8" class="iv-empty"><span class="spin"></span> Memuat...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="pager">
+      <span id="myInfo">-</span>
+      <div class="pg-btns" id="myPager"></div>
+    </div>
+  </div>
+
+  <!-- TEST / ADD NUMBERS -->
+  <div id="pane-test" style="display:none">
+    <div class="iv-banner" style="background:#3b82f6">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+      Test Numbers
+      <span id="testCount" style="margin-left:auto;font-size:11px;font-weight:400;opacity:.85">-</span>
+    </div>
+    <div class="tbar">
+      <input type="text" id="testSearch" class="srch-inp" placeholder="Search range / number..." oninput="filterTest()"/>
+      <select id="testShow" class="show-sel" onchange="renderTest()">
+        <option value="50">Show 50</option>
+        <option value="100">Show 100</option>
+        <option value="200">Show 200</option>
+      </select>
+      <div class="tbar-right">
+        <button class="btn-sm btn-reload" onclick="loadTest()">↻ Reload</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="ntbl">
+        <thead>
+          <tr>
+            <th>Range Name</th>
+            <th>Test Number</th>
+            <th class="center">Term</th>
+            <th class="center">Rate</th>
+            <th class="center">Country Limit</th>
+            <th class="center">SID→Range Limit</th>
+            <th class="center">SID→DID Limit</th>
+            <th class="center">Action</th>
+          </tr>
+        </thead>
+        <tbody id="testBody">
+          <tr><td colspan="8" class="iv-empty"><span class="spin"></span> Memuat...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="pager">
+      <span id="testInfo">-</span>
+      <div class="pg-btns" id="testPager"></div>
+    </div>
   </div>
 </div>
 
-<!-- My Numbers list -->
-<div class="card">
-  <div class="card-header">
-    <div class="card-title">☎ Daftar Nomor</div>
-    <div style="display:flex;gap:8px;align-items:center">
-      <select id="pageMode" class="form-input" style="width:120px;padding:6px 10px;font-size:13px" onchange="loadNumbers()">
-        <option value="test">Test Numbers</option>
-        <option value="my">My Numbers</option>
-      </select>
-      <input type="text" id="numSearch" class="form-input" placeholder="Search..." style="width:180px;padding:6px 12px;font-size:13px" oninput="filterNums()"/>
-      <button class="btn btn-outline btn-sm" onclick="loadNumbers()">↺ Refresh</button>
-      <span id="numCount" style="font-size:12px;color:var(--ink2);font-family:var(--mono)"></span>
-    </div>
-  </div>
-  <div class="tbl-wrap">
-    <table>
-      <thead><tr><th>Nomor</th><th>Range</th><th>A2P</th><th>Limit</th><th>Term ID</th><th>Aksi</th></tr></thead>
-      <tbody id="numBody"><tr><td colspan="6" style="text-align:center;padding:28px;color:var(--ink2)">Klik Refresh untuk memuat</td></tr></tbody>
-    </table>
-  </div>
-</div>
+<!-- Toast -->
+<div class="toast" id="toast"></div>
 
 <script>
-let allNums=[];
+let _my=[], _myFiltered=[], _myPage=1;
+let _test=[], _testFiltered=[], _testPage=1;
 
-function toggleAddMode(){
-  const m=document.getElementById('addMode').value;
-  document.getElementById('addRangeGrp').style.display=m==='range'?'block':'none';
-  document.getElementById('addNumGrp').style.display=m==='number'?'block':'none';
-  document.getElementById('addTidGrp').style.display=m==='tid'?'block':'none';
+// ── Tab switch ──
+function switchTab(t) {
+  document.getElementById('pane-my').style.display   = t==='my'?'':'none';
+  document.getElementById('pane-test').style.display = t==='test'?'':'none';
+  document.getElementById('tab-my').className   = 'tab'+(t==='my'?' active':'');
+  document.getElementById('tab-test').className = 'tab'+(t==='test'?' active':'');
+  if (t==='test' && !_test.length) loadTest();
 }
 
-async function doAdd(){
-  const m=document.getElementById('addMode').value;
-  const res=document.getElementById('addResult');
-  const payload={};
-  if(m==='range') payload.range_name=document.getElementById('addRange').value.trim();
-  if(m==='number') payload.number=document.getElementById('addNum').value.trim();
-  if(m==='tid') payload.termination_id=document.getElementById('addTid').value.trim();
-  if(!Object.values(payload).filter(Boolean).length){toast('Input wajib diisi','err');return}
-  res.innerHTML='<span class="spin"></span> Menambahkan...';
-  const d=await apiJson('/api/numbers/add',payload);
-  if(d.status==='ok'||d.success){
-    const msg=d.added!=null?`✅ ${d.added} nomor berhasil ditambahkan`:`✅ ${d.message||'Berhasil'}`;
-    res.innerHTML=`<div class="alert alert-ok">${msg}</div>`;
-    toast(msg,'ok');
-    loadNumbers();
-  } else {
-    res.innerHTML=`<div class="alert alert-err">✗ ${escHtml(d.message||'Gagal menambahkan')}</div>`;
+// ── Toast ──
+function toast(msg, type='ok') {
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className=`toast show ${type}`;
+  setTimeout(()=>el.className='toast',3000);
+}
+
+// ── MY NUMBERS ──
+async function loadMy() {
+  const body=document.getElementById('myBody');
+  body.innerHTML='<tr><td colspan="8" class="iv-empty"><span class="spin"></span> Memuat...</td></tr>';
+  try {
+    const d=await apiFetch('/api/numbers/my-list?limit=1000');
+    _my = d.numbers||[];
+    _myFiltered = [..._my];
+    document.getElementById('myCount').textContent = _my.length+' entries';
+    _myPage=1; renderMy();
+  } catch(e) {
+    body.innerHTML=`<tr><td colspan="8" class="iv-empty" style="color:#ef4444">Error: ${escHtml(e.message)}</td></tr>`;
   }
 }
 
-async function doDelete(){
-  const val=document.getElementById('delInput').value.trim();
-  const res=document.getElementById('delResult');
-  if(!val){toast('Input wajib diisi','err');return}
-  if(!confirm(`Hapus nomor/ID "${val}"?`))return;
-  res.innerHTML='<span class="spin"></span> Menghapus...';
-  const payload=/^\d+$/.test(val)&&val.length<8?{termination_id:val}:{number:val};
-  const d=await apiJson('/api/numbers/delete',payload);
-  if(d.status==='ok'||d.success){
-    const msg=`✅ ${d.message||'Berhasil dihapus'}`;
-    res.innerHTML=`<div class="alert alert-ok">${msg}</div>`;
-    toast(msg,'ok');
-    loadNumbers();
-  } else {
-    res.innerHTML=`<div class="alert alert-err">✗ ${escHtml(d.message||'Gagal menghapus')}</div>`;
+function filterMy() {
+  const q=document.getElementById('mySearch').value.trim().toLowerCase();
+  _myFiltered = q ? _my.filter(n=>(n.number||'').includes(q)||(n.range_name||'').toLowerCase().includes(q)) : [..._my];
+  _myPage=1; renderMy();
+}
+
+function toggleAllMy(cb) {
+  document.querySelectorAll('.my-cb').forEach(c=>c.checked=cb.checked);
+}
+
+function renderMy() {
+  const perPage=parseInt(document.getElementById('myShow').value)||20;
+  const total=_myFiltered.length;
+  const pages=Math.max(1,Math.ceil(total/perPage));
+  if (_myPage>pages) _myPage=pages;
+  const start=(_myPage-1)*perPage, end=Math.min(start+perPage,total);
+  const slice=_myFiltered.slice(start,end);
+  const body=document.getElementById('myBody');
+  if (!slice.length) {
+    body.innerHTML='<tr><td colspan="8" class="iv-empty">Tidak ada nomor.</td></tr>'; return;
   }
-}
-
-async function loadNumbers(){
-  const page=document.getElementById('pageMode').value;
-  const body=document.getElementById('numBody');
-  body.innerHTML=`<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--ink2)"><span class="spin"></span> Memuat...</td></tr>`;
-  const d=await apiFetch(`/api/numbers/my?page=${page}&limit=500`);
-  allNums=d.numbers||[];
-  document.getElementById('numCount').textContent=`${allNums.length} nomor`;
-  renderNums(allNums);
-}
-
-function filterNums(){
-  const q=document.getElementById('numSearch').value.toLowerCase();
-  renderNums(allNums.filter(n=>(n.number||'').includes(q)||(n.range||'').toLowerCase().includes(q)));
-}
-
-function renderNums(list){
-  const body=document.getElementById('numBody');
-  if(!list.length){body.innerHTML=`<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--ink2)">Tidak ada nomor</td></tr>`;return}
-  body.innerHTML=list.map(n=>`<tr>
-    <td style="font-family:var(--mono);font-weight:700">${escHtml(n.number||'-')}</td>
-    <td>${escHtml(n.range||'-')}</td>
-    <td style="font-size:12px">${escHtml(n.a2p||'-')}</td>
-    <td style="font-size:12px;color:var(--ink2)">${escHtml(n.limit||'-')}</td>
-    <td style="font-family:var(--mono);font-size:11px;color:var(--ink3)">${escHtml(n.term_id||'-')}</td>
-    <td><button class="btn btn-danger btn-xs" onclick="quickDel('${n.term_id||n.number}','${n.number}')">Hapus</button></td>
+  body.innerHTML=slice.map(n=>`
+  <tr>
+    <td><input type="checkbox" class="cb my-cb" value="${escHtml(n.number_id||'')}"/></td>
+    <td class="num-cell">${escHtml(n.number||'')}</td>
+    <td class="rng-cell">${escHtml(n.range_name||'')}</td>
+    <td class="rate-cell">${escHtml(n.rate_a2p||'')}</td>
+    <td class="lim-cell">${escHtml(n.limit_range||'')}</td>
+    <td class="lim-cell">${escHtml(n.limit_did_a2p||'-')}</td>
+    <td class="lim-cell">${escHtml(n.limit_cli_a2p||'-')}</td>
+    <td style="text-align:center">
+      <button class="btn-del" onclick="delNumber('${escHtml(n.number_id||'')}','${escHtml(n.number||'')}',this)">🗑</button>
+    </td>
   </tr>`).join('');
+  document.getElementById('myInfo').textContent=`Showing ${start+1} to ${end} of ${total} entries`;
+  renderPager('myPager', _myPage, pages, p=>{_myPage=p;renderMy();});
 }
 
-async function quickDel(tid,num){
-  if(!confirm(`Hapus nomor ${num}?`))return;
-  const payload=tid&&/^\d+$/.test(tid)?{termination_id:tid}:{number:num};
-  const d=await apiJson('/api/numbers/delete',payload);
-  if(d.success||d.status==='ok'){toast(`✅ ${num} dihapus`,'ok');loadNumbers();}
-  else toast(d.message||'Gagal','err');
+async function delNumber(tid, num, btn) {
+  if (!tid) { toast('Tidak ada termination ID','err'); return; }
+  if (!confirm(`Hapus nomor ${num}?`)) return;
+  btn.disabled=true; btn.textContent='⏳';
+  try {
+    const d=await apiFetch(`/api/numbers/delete?termination_id=${encodeURIComponent(tid)}`,{method:'POST'});
+    if (d.status==='ok'&&d.success) {
+      toast(`✅ ${num} berhasil dihapus`);
+      _my=_my.filter(n=>n.number_id!==tid);
+      filterMy();
+    } else {
+      toast(d.message||'Gagal hapus','err');
+      btn.disabled=false; btn.textContent='🗑';
+    }
+  } catch(e) { toast(e.message,'err'); btn.disabled=false; btn.textContent='🗑'; }
 }
+
+// ── TEST NUMBERS ──
+async function loadTest() {
+  const body=document.getElementById('testBody');
+  body.innerHTML='<tr><td colspan="8" class="iv-empty"><span class="spin"></span> Memuat...</td></tr>';
+  try {
+    const d=await apiFetch('/api/numbers/test-list?limit=1000');
+    _test=d.numbers||[];
+    _testFiltered=[..._test];
+    document.getElementById('testCount').textContent=_test.length+' entries';
+    _testPage=1; renderTest();
+  } catch(e) {
+    body.innerHTML=`<tr><td colspan="8" class="iv-empty" style="color:#ef4444">Error: ${escHtml(e.message)}</td></tr>`;
+  }
+}
+
+function filterTest() {
+  const q=document.getElementById('testSearch').value.trim().toLowerCase();
+  _testFiltered=q?_test.filter(n=>(n.test_number||'').includes(q)||(n.range_name||'').toLowerCase().includes(q)):[..._test];
+  _testPage=1; renderTest();
+}
+
+function renderTest() {
+  const perPage=parseInt(document.getElementById('testShow').value)||50;
+  const total=_testFiltered.length;
+  const pages=Math.max(1,Math.ceil(total/perPage));
+  if (_testPage>pages) _testPage=pages;
+  const start=(_testPage-1)*perPage, end=Math.min(start+perPage,total);
+  const slice=_testFiltered.slice(start,end);
+  const body=document.getElementById('testBody');
+  if (!slice.length) {
+    body.innerHTML='<tr><td colspan="8" class="iv-empty">Tidak ada nomor.</td></tr>'; return;
+  }
+  body.innerHTML=slice.map(n=>`
+  <tr>
+    <td class="rng-cell">${escHtml(n.range_name||'')}</td>
+    <td class="num-cell">${escHtml(n.test_number||'')}</td>
+    <td class="lim-cell">${escHtml(n.term||'')}</td>
+    <td class="rate-cell">${escHtml(n.rate_a2p||'')}</td>
+    <td class="lim-cell">${escHtml(n.limit_range||'')}</td>
+    <td class="lim-cell">-</td>
+    <td class="lim-cell">-</td>
+    <td style="text-align:center">
+      <button class="btn-add" id="addbtn-${escHtml(n.number_id||n.test_number)}"
+        onclick="addNumber('${escHtml(n.number_id||'')}','${escHtml(n.test_number||'')}',this)">+</button>
+    </td>
+  </tr>`).join('');
+  document.getElementById('testInfo').textContent=`Showing ${start+1} to ${end} of ${total} entries`;
+  renderPager('testPager', _testPage, pages, p=>{_testPage=p;renderTest();});
+}
+
+async function addNumber(tid, num, btn) {
+  if (!tid) { toast('Tidak ada termination ID','err'); return; }
+  btn.disabled=true; btn.textContent='⏳';
+  try {
+    const d=await apiFetch(`/api/numbers/add?termination_id=${encodeURIComponent(tid)}`,{method:'POST'});
+    if (d.status==='ok'&&(d.success||d.added>0)) {
+      toast(`✅ ${num} berhasil ditambahkan`);
+      btn.textContent='✓'; btn.style.background='rgba(34,197,94,.2)'; btn.style.color='#22c55e';
+    } else {
+      toast(d.message||'Gagal tambah','err');
+      btn.disabled=false; btn.textContent='+';
+    }
+  } catch(e) { toast(e.message,'err'); btn.disabled=false; btn.textContent='+'; }
+}
+
+// ── Pager helper ──
+function renderPager(containerId, current, total, cb) {
+  const el=document.getElementById(containerId);
+  if (total<=1) { el.innerHTML=''; return; }
+  const pages=[];
+  // prev
+  pages.push(`<button class="pg-btn" ${current===1?'disabled':''} onclick="(${cb})(${current-1})">‹ Prev</button>`);
+  // page numbers (max 5)
+  let s=Math.max(1,current-2), e=Math.min(total,s+4);
+  if (e-s<4) s=Math.max(1,e-4);
+  for (let p=s;p<=e;p++)
+    pages.push(`<button class="pg-btn${p===current?' active':''}" onclick="(${cb})(${p})">${p}</button>`);
+  pages.push(`<button class="pg-btn" ${current===total?'disabled':''} onclick="(${cb})(${current+1})">Next ›</button>`);
+  el.innerHTML=pages.join('');
+}
+
+function exportMyCSV() {
+  const rows=[['Number','Range','Rate','Limit'],..._myFiltered.map(n=>[n.number,n.range_name,n.rate_a2p,n.limit_range])];
+  const b=new Blob([rows.map(r=>r.join(',')).join('\n')],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='my-numbers.csv';a.click();
+}
+
+// init
+loadMy();
 </script>
 {% endblock %}
