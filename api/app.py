@@ -2082,7 +2082,7 @@ def api_numbers_my_list():
     """
     uid    = g.uid
     search = request.args.get("search","").strip()
-    limit  = min(int(request.args.get("limit",200)), 1000)
+    limit  = min(int(request.args.get("limit",100)), 500)
     rows, total = _fetch_my_numbers(uid, search=search, length=limit)
     clean = []
     for row in rows:

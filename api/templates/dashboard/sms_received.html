@@ -114,8 +114,16 @@
 <script>
 // ── Local helpers (safe: loaded inline, not dependent on base.html order) ──
 async function _apiFetch(url, opts={}) {
-  const r = await fetch(url, {headers:{'Content-Type':'application/json'}, ...opts})
+  const r = await fetch(url, opts)
   if (r.status === 401) { window.location.href='/login'; return null }
+  if (r.status === 403) {
+    const d = await r.json().catch(()=>({}))
+    if (d.ivas_expired) {
+      // Trigger reconnect background
+      fetch('/api/ivas/auto-reconnect',{method:'POST'}).catch(()=>{})
+    }
+    return d
+  }
   return r.json()
 }
 function _esc(t) { return String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
@@ -165,8 +173,18 @@ async function doGet() {
     // Render skeleton rows
     body.innerHTML = rngs.map(r => rngRowHtml(r, fd, td)).join('')
     document.getElementById('tsLbl').textContent = new Date().toLocaleTimeString()
-    // Load stats for each range in parallel
-    rngs.forEach(r => loadRangeStats(r.name, rid(r.name), fd, td))
+    // FIX: batasi concurrent range stats load - max 3 sekaligus
+    // kalau semua parallel → 50 request sekaligus → semua timeout
+    const CONCUR = 3
+    let idx = 0
+    async function _nextRange() {
+      if (idx >= rngs.length) return
+      const r = rngs[idx++]
+      await loadRangeStats(r.name, rid(r.name), fd, td)
+      await _nextRange()
+    }
+    const workers = Array.from({length: Math.min(CONCUR, rngs.length)}, _nextRange)
+    Promise.all(workers)
   } catch(e) {
     body.innerHTML = `<tr><td colspan="5" class="iv-empty" style="color:#ef4444">Error: ${_esc(e.message)}</td></tr>`
   } finally {

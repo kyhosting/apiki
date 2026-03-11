@@ -120,12 +120,24 @@ function toast(msg,type='info',dur=3500){
   setTimeout(()=>{el.style.opacity='0';el.style.transition='.25s';setTimeout(()=>el.remove(),250)},dur);
 }
 async function apiFetch(url,opts={}){
-  const r=await fetch(url,{headers:{'Content-Type':'application/json'},...opts});
+  const r=await fetch(url,opts);
   // Session Flask expired → redirect ke login
   if(r.status===401){
     const d=await r.json().catch(()=>({}));
     if(d.redirect){window.location.href=d.redirect;return null;}
     window.location.href='/login';return null;
+  }
+  // iVAS session expired → JANGAN logout app, trigger reconnect
+  if(r.status===403){
+    const d=await r.json().catch(()=>({}));
+    if(d.ivas_expired){
+      toast('⚠️ Session iVAS expired — login ulang otomatis...','warn');
+      fetch('/api/ivas/auto-reconnect',{method:'POST'})
+        .then(rc=>rc.json()).then(rd=>{
+          if(rd&&rd.status==='ok') toast('✅ iVAS reconnect berhasil, refresh halaman','ok');
+        }).catch(()=>{});
+    }
+    return d;
   }
   return r.json();
 }

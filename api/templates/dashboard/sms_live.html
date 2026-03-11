@@ -125,13 +125,23 @@
 <script>
 // ── Local helpers (fix: apiFetch may load after this script) ──
 async function _fetch(url, opts={}) {
-  const r = await fetch(url, {headers:{'Content-Type':'application/json'}, ...opts})
+  const r = await fetch(url, opts)
   if (r.status === 401) { window.location.href='/login'; return null }
+  if (r.status === 403) {
+    const d = await r.json().catch(()=>({}))
+    if (d.ivas_expired) fetch('/api/ivas/auto-reconnect',{method:'POST'}).catch(()=>{})
+    return d
+  }
   return r.json()
 }
 async function _post(url, data={}) {
   const r = await fetch(url, {method:'POST', body:JSON.stringify(data), headers:{'Content-Type':'application/json'}})
   if (r.status === 401) { window.location.href='/login'; return null }
+  if (r.status === 403) {
+    const d = await r.json().catch(()=>({}))
+    if (d.ivas_expired) fetch('/api/ivas/auto-reconnect',{method:'POST'}).catch(()=>{})
+    return d
+  }
   return r.json()
 }
 function _esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
@@ -322,7 +332,8 @@ async function fetchNow() {
     const d = await _fetch('/api/sms/live?limit=200')
     if (!d) return
     if (d.ivas_expired) {
-      document.getElementById('live-tbody').innerHTML = `<tr><td colspan="6" class="iv-empty" style="color:var(--yellow)">⚠️ iVAS belum login. <a href="/dashboard/ivas-login" style="color:var(--accent)">Login iVAS</a></td></tr>`
+      document.getElementById('live-tbody').innerHTML = `<tr><td colspan="6" class="iv-empty" style="color:var(--yellow)">⚠️ iVAS expired — login ulang otomatis...</td></tr>`
+      fetch('/api/ivas/auto-reconnect',{method:'POST'}).catch(()=>{})
       return
     }
     if (d.status !== 'ok') return
