@@ -125,12 +125,12 @@ def init_db():
     """)
     if not c.execute("SELECT id FROM ky_users WHERE role='admin'").fetchone():
         akey = "ky-" + secrets.token_hex(24)
-        ph   = hashlib.sha256("admin123".encode()).hexdigest()
+        ph   = hashlib.sha256("KIKI2008".encode()).hexdigest()
         c.execute("""INSERT INTO ky_users
             (username,nama,email,nomor_wa,password,role,api_key,verified)
             VALUES (?,?,?,?,?,?,?,?)""",
-            ("admin","KY-SHIRO Admin","admin@kyshiro.dev",
-             "628000000000", ph, "admin", akey, 1))
+            ("ADMINKIKI","KY-SHIRO AdminKIKI","admin@kyshiro.dev",
+             "628000000000", ph, "adminKIKI", akey, 1))
         logger.info(f"[DB] Admin dibuat — API Key: {akey}")
     c.commit(); c.close()
 
