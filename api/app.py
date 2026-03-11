@@ -147,6 +147,7 @@ _ws_status: dict = {}   # user_id → {connected, live_connected, email, ...}
 _ws_clients:dict = {}   # user_id → sio client (test)
 _ws_live_clients: dict = {}  # user_id → sio client (livesms)
 _ws_lock  = threading.Lock()
+_ws_event: dict = {}  # user_id -> threading.Event, notify SSE saat ada SMS baru
 _ws_enabled = True
 
 # ─── CSRF Referer Map ─────────────────────────────────────────────
@@ -791,6 +792,9 @@ def _ws_add_test(user_id, data):
         if user_id not in _ws_test:
             _ws_test[user_id] = deque(maxlen=_WS_SMS_MAX)
         _ws_test[user_id].appendleft(entry)
+    # Signal SSE test stream
+    ev = _ws_event.get(user_id)
+    if ev: ev.set()
     with _ws_lock:
         st = _ws_status.get(user_id, {})
         _ws_status[user_id] = st
@@ -817,6 +821,9 @@ def _ws_add_live(user_id, data, source="websocket_live"):
         if user_id not in _ws_live:
             _ws_live[user_id] = deque(maxlen=_WS_LIVE_MAX)
         _ws_live[user_id].appendleft(entry)
+    # Signal SSE stream — wakeup instant, no sleep
+    ev = _ws_event.get(user_id)
+    if ev: ev.set()
     with _ws_lock:
         if user_id not in _ws_status: _ws_status[user_id] = {}
         _ws_status[user_id]["live_sms_count"] = _ws_status[user_id].get("live_sms_count", 0) + 1
@@ -926,74 +933,138 @@ def _build_live_ws_client(user_id, jwt_token, user_hash="", livesms_event=""):
         logger.error(f"[WS-LIVE] Build client error: {e}")
         return None
 
+def _ws_auto_relogin(user_id: int):
+    """Auto re-login iVAS kalau session expired. Return session baru atau None."""
+    try:
+        c = db()
+        u = c.execute("SELECT ivas_email,ivas_pass FROM ky_users WHERE id=? AND is_active=1",(user_id,)).fetchone()
+        c.close()
+        if not u or not u["ivas_email"]:
+            logger.warning(f"[AUTO-LOGIN] user={user_id} tidak ada kredensial iVAS")
+            return None
+        logger.info(f"[AUTO-LOGIN] user={user_id} re-login sebagai {u['ivas_email']}...")
+        result = ivas_login(user_id, u["ivas_email"], u["ivas_pass"])
+        if result.get("ok"):
+            logger.info(f"[AUTO-LOGIN] user={user_id} re-login BERHASIL")
+            return result
+        logger.error(f"[AUTO-LOGIN] user={user_id} gagal: {result.get('error')}")
+    except Exception as e:
+        logger.error(f"[AUTO-LOGIN] user={user_id} exception: {e}")
+    return None
+
+def _ws_get_or_relogin(user_id: int):
+    """Ambil session aktif. Kalau tidak ada/expired langsung auto re-login."""
+    sess = get_ivas_session(user_id)
+    if sess and sess.get("ok"):
+        return sess
+    return _ws_auto_relogin(user_id)
+
 def _ws_start_test(user_id: int):
-    """Thread: connect ke test namespace Socket.IO iVAS."""
+    """
+    Thread: connect ke test namespace Socket.IO iVAS.
+    FAST RECONNECT — no sleep/backoff. Instant reconnect on disconnect.
+    Auto re-login on session expired.
+    """
     def _run():
-        reconnect_delay = 10; fail_count = 0
+        consecutive_fail = 0
         while _ws_enabled:
             try:
-                sess = get_ivas_session(user_id)
+                sess = _ws_get_or_relogin(user_id)
                 if not sess:
-                    time.sleep(reconnect_delay); continue
+                    logger.error(f"[WS-TEST] user={user_id} no session/creds -> thread stop")
+                    break
+
                 scraper = sess["scraper"]
-                # Dapatkan JWT token
                 jwt_tok = sess.get("jwt_tok","")
                 if not jwt_tok:
-                    jwt_tok = _scrape_csrf_direct(scraper, IVAS_LIVE_TST) or ""
+                    xsrf = scraper.cookies.get("XSRF-TOKEN","")
+                    if xsrf and xsrf.startswith("eyJ"):
+                        from urllib.parse import unquote
+                        jwt_tok = unquote(xsrf)
                 if not jwt_tok:
                     jwt_tok = scraper.cookies.get("laravel_session","")
 
                 sio = _build_test_ws_client(user_id, jwt_tok)
-                if not sio: time.sleep(reconnect_delay); continue
+                if not sio:
+                    time.sleep(1); continue
 
                 with _ws_lock:
-                    old = _ws_clients.get(user_id)
-                    if old:
-                        try: old.disconnect()
+                    old_sio = _ws_clients.get(user_id)
+                    if old_sio:
+                        try: old_sio.disconnect()
                         except: pass
                     _ws_clients[user_id] = sio
 
                 cookie_str = "; ".join(f"{k}={v}" for k,v in dict(scraper.cookies).items())
                 auth_data  = {"token": jwt_tok} if jwt_tok else {}
 
+                logger.info(f"[WS-TEST] user={user_id} connecting... jwt={'YES' if jwt_tok else 'cookie-only'}")
                 sio.connect(IVAS_WS,
-                    headers={"Cookie": cookie_str, "Origin": IVAS_BASE, "Referer": IVAS_LIVE_TST,
-                             "User-Agent": scraper.headers.get("User-Agent","")},
+                    headers={
+                        "Cookie":     cookie_str,
+                        "Origin":     IVAS_BASE,
+                        "Referer":    IVAS_LIVE_TST,
+                        "User-Agent": scraper.headers.get("User-Agent",""),
+                    },
                     auth=auth_data if auth_data else None,
                     transports=["websocket"],
                     socketio_path="/socket.io/",
-                    wait_timeout=30)
+                    wait_timeout=15)
 
                 try:
-                    username = sess["ivas_email"].split("@")[0].upper()
-                    sio.emit("join", {"UserName": username, "Email": sess["ivas_email"]})
+                    email = sess["ivas_email"]
+                    sio.emit("join", {"UserName": email.split("@")[0].upper(), "Email": email})
                 except: pass
 
-                logger.info(f"[WS-TEST] user={user_id} → Waiting for test SMS events...")
+                consecutive_fail = 0
+                logger.info(f"[WS-TEST] user={user_id} CONNECTED - listening...")
                 sio.wait()
-                logger.warning(f"[WS-TEST] user={user_id} disconnected, reconnect {reconnect_delay}s...")
+
                 _ws_set_status(user_id, connected=False)
                 with _ws_lock:
                     if user_id in _ws_status:
-                        _ws_status[user_id]["reconnects"] = _ws_status[user_id].get("reconnects",0) + 1
+                        _ws_status[user_id]["reconnects"] = _ws_status[user_id].get("reconnects",0)+1
+                logger.warning(f"[WS-TEST] user={user_id} disconnected -> instant reconnect")
+
+                # Force re-login check after disconnect
+                if not get_ivas_session(user_id):
+                    logger.info(f"[WS-TEST] user={user_id} session lost -> will re-login next iter")
+
+            except _sio_module.exceptions.ConnectionError as e:
+                consecutive_fail += 1
+                err_str = str(e)
+                logger.error(f"[WS-TEST] user={user_id} ConnError ({consecutive_fail}): {err_str}")
+                _ws_set_status(user_id, connected=False, error=err_str)
+                # Auth error = session expired -> force re-login
+                if any(k in err_str.lower() for k in ("403","401","unauthorized","expired","token")):
+                    with _ivas_lock: _ivas_sessions.pop(user_id, None)
+                time.sleep(min(consecutive_fail, 3))
+
             except Exception as e:
-                logger.error(f"[WS-TEST] user={user_id} error: {e}")
+                consecutive_fail += 1
+                logger.error(f"[WS-TEST] user={user_id} error ({consecutive_fail}): {e}")
                 _ws_set_status(user_id, connected=False, error=str(e))
-                fail_count += 1
-            if not get_ivas_session(user_id): break
-            time.sleep(min(reconnect_delay + fail_count*5, 120))
+                time.sleep(min(consecutive_fail, 3))
+
         logger.info(f"[WS-TEST] user={user_id} thread stopped")
     t = threading.Thread(target=_run, name=f"ws-test-{user_id}", daemon=True)
     t.start()
 
 def _ws_start_live(user_id: int):
-    """Thread: connect ke /livesms namespace Socket.IO iVAS (My SMS)."""
+    """
+    Thread: connect ke /livesms namespace Socket.IO iVAS (My SMS).
+    FAST RECONNECT — no sleep/backoff. Instant reconnect on disconnect.
+    Auto re-login kalau session expired/403.
+    """
     def _run():
-        reconnect_delay = 15; fail_count = 0
+        consecutive_fail = 0
         while _ws_enabled:
             try:
-                sess = get_ivas_session(user_id)
-                if not sess: time.sleep(reconnect_delay); continue
+                # Ambil session aktif — kalau expired langsung re-login
+                sess = _ws_get_or_relogin(user_id)
+                if not sess:
+                    logger.error(f"[WS-LIVE] user={user_id} no session/creds -> thread stop")
+                    break
 
                 scraper       = sess["scraper"]
                 jwt_tok       = sess.get("jwt_tok","")
@@ -1001,28 +1072,49 @@ def _ws_start_live(user_id: int):
                 livesms_event = sess.get("livesms_event","")
 
                 if not jwt_tok:
-                    jwt_tok = scraper.cookies.get("laravel_session","")
-
-                # Re-scrape halaman live untuk pastikan token fresh
-                try:
-                    live_pg = scraper.get(IVAS_LIVE_MY, timeout=15)
-                    live_html = decode_resp(live_pg)
-                    meta = BeautifulSoup(live_html,"html.parser").find("meta",{"name":"csrf-token"})
-                    if meta: pass  # CSRF already fresh
                     xsrf = scraper.cookies.get("XSRF-TOKEN","")
                     if xsrf and xsrf.startswith("eyJ"):
                         from urllib.parse import unquote
                         jwt_tok = unquote(xsrf)
-                    uh_m = re.search(r'''[,{\s]\s*user\s*:\s*["']([a-f0-9]{32})["']''', live_html)
+                if not jwt_tok:
+                    jwt_tok = scraper.cookies.get("laravel_session","")
+
+                # Re-scrape halaman live — cari jwt/user_hash/livesms_event fresh
+                # (harus dilakukan setiap reconnect karena event name per-user encrypted)
+                try:
+                    live_pg   = scraper.get(IVAS_LIVE_MY, timeout=10)
+                    live_html = decode_resp(live_pg)
+
+                    # Detect session expired dari redirect ke /login
+                    if "/login" in live_pg.url or "login" in live_html[:500].lower():
+                        logger.warning(f"[WS-LIVE] user={user_id} session expired (redirect login) -> force re-login")
+                        with _ivas_lock: _ivas_sessions.pop(user_id, None)
+                        relogin = _ws_auto_relogin(user_id)
+                        if not relogin:
+                            time.sleep(0)  # no-op; continue
+                        sess = relogin
+                        scraper = sess["scraper"]
+                        live_pg   = scraper.get(IVAS_LIVE_MY, timeout=10)
+                        live_html = decode_resp(live_pg)
+
+                    xsrf = scraper.cookies.get("XSRF-TOKEN","")
+                    if xsrf and xsrf.startswith("eyJ"):
+                        from urllib.parse import unquote
+                        jwt_tok = unquote(xsrf)
+
+                    uh_m = re.search(r"""[,{\s]\s*user\s*:\s*["']([a-f0-9]{32})["']""", live_html)
                     if uh_m: user_hash = uh_m.group(1)
-                    ev_m = re.search(r'liveSMSSocket\.on\s*\(\s*["\']([A-Za-z0-9+/=_\-]{30,})["\']\s*,', live_html)
-                    if ev_m: livesms_event = ev_m.group(1)
-                    if not livesms_event:
+
+                    # Scrape livesms_event (encrypted per-user event name)
+                    ev_m = re.search(r'liveSMSSocket\.on\s*\(\s*["\'"]([A-Za-z0-9+/=_\-]{30,})["\'"]\s*,', live_html)
+                    if ev_m:
+                        livesms_event = ev_m.group(1)
+                    else:
                         block = re.search(r'liveSMSSocket\s*=\s*io\([^)]+\)([\s\S]{0,2000})', live_html)
                         if block:
-                            ev_m2 = re.search(r'\.on\s*\(\s*["\']([A-Za-z0-9+/=_\-]{30,})["\']\s*,', block.group(1))
+                            ev_m2 = re.search(r'\.on\s*\(\s*["\'"]([A-Za-z0-9+/=_\-]{30,})["\'"]\s*,', block.group(1))
                             if ev_m2: livesms_event = ev_m2.group(1)
-                    # Update session cache
+
                     with _ivas_lock:
                         if user_id in _ivas_sessions:
                             _ivas_sessions[user_id].update({
@@ -1030,36 +1122,45 @@ def _ws_start_live(user_id: int):
                                 "user_hash": user_hash,
                                 "livesms_event": livesms_event,
                             })
-                    logger.info(f"[WS-LIVE] user={user_id} — "
-                                f"jwt={'✅' if jwt_tok else '❌'}, "
-                                f"user_hash={'✅' if user_hash else '❌'}, "
-                                f"livesms_event={'✅ '+livesms_event[:20] if livesms_event else '❌ (catch-all)'}")
+                    logger.info(
+                        f"[WS-LIVE] user={user_id} tokens — "
+                        f"jwt={'YES' if jwt_tok else 'NO'} "
+                        f"user_hash={'YES' if user_hash else 'NO'} "
+                        f"event={'YES:'+livesms_event[:20] if livesms_event else 'NO(catch-all)'}"
+                    )
                 except Exception as e:
-                    logger.warning(f"[WS-LIVE] Re-scrape live page error: {e}")
+                    logger.warning(f"[WS-LIVE] re-scrape error: {e}")
 
                 sio = _build_live_ws_client(user_id, jwt_tok, user_hash, livesms_event)
-                if not sio: time.sleep(reconnect_delay); continue
+                if not sio:
+                    logger.error(f"[WS-LIVE] user={user_id} gagal build client, retry 1s...")
+                    time.sleep(1); continue
 
                 with _ws_lock:
-                    old = _ws_live_clients.get(user_id)
-                    if old:
-                        try: old.disconnect()
+                    old_sio = _ws_live_clients.get(user_id)
+                    if old_sio:
+                        try: old_sio.disconnect()
                         except: pass
                     _ws_live_clients[user_id] = sio
 
-                cookie_str  = "; ".join(f"{k}={v}" for k,v in dict(scraper.cookies).items())
-                auth_data   = {}
+                cookie_str = "; ".join(f"{k}={v}" for k,v in dict(scraper.cookies).items())
+                auth_data  = {}
                 if jwt_tok:   auth_data["token"] = jwt_tok
                 if user_hash: auth_data["user"]  = user_hash
 
+                logger.info(f"[WS-LIVE] user={user_id} connecting /livesms namespace...")
                 sio.connect(IVAS_WS,
-                    headers={"Cookie": cookie_str, "Origin": IVAS_BASE, "Referer": IVAS_LIVE_MY,
-                             "User-Agent": scraper.headers.get("User-Agent","")},
+                    headers={
+                        "Cookie":     cookie_str,
+                        "Origin":     IVAS_BASE,
+                        "Referer":    IVAS_LIVE_MY,
+                        "User-Agent": scraper.headers.get("User-Agent",""),
+                    },
                     auth=auth_data if auth_data else None,
                     transports=["websocket"],
                     socketio_path="/socket.io/",
                     namespaces=["/livesms"],
-                    wait_timeout=30)
+                    wait_timeout=15)
 
                 try:
                     email = sess["ivas_email"]
@@ -1067,23 +1168,45 @@ def _ws_start_live(user_id: int):
                              namespace="/livesms")
                 except: pass
 
-                logger.info(f"[WS-LIVE] user={user_id} → Waiting for My SMS events...")
-                sio.wait()
-                logger.warning(f"[WS-LIVE] user={user_id} disconnected, reconnect {reconnect_delay}s...")
+                consecutive_fail = 0
+                logger.info(f"[WS-LIVE] user={user_id} CONNECTED /livesms — listening for My SMS...")
+                sio.wait()  # block sampai disconnect
+
+                # Disconnected — langsung reconnect, TANPA sleep
                 _ws_set_status(user_id, live_connected=False)
                 with _ws_lock:
                     if user_id in _ws_status:
-                        _ws_status[user_id]["live_reconnects"] = \
-                            _ws_status[user_id].get("live_reconnects",0) + 1
+                        _ws_status[user_id]["live_reconnects"] = _ws_status[user_id].get("live_reconnects",0)+1
+                logger.warning(f"[WS-LIVE] user={user_id} disconnected -> instant reconnect")
+
+                # Session masih ada? Kalau tidak, re-login di iter berikutnya
+                if not get_ivas_session(user_id):
+                    logger.info(f"[WS-LIVE] user={user_id} session lost -> will re-login next iter")
+
+            except _sio_module.exceptions.ConnectionError as e:
+                consecutive_fail += 1
+                err_str = str(e)
+                logger.error(f"[WS-LIVE] user={user_id} ConnError ({consecutive_fail}): {err_str}")
+                _ws_set_status(user_id, live_connected=False, live_error=err_str)
+
+                # Auth/403 = session expired -> force re-login sekarang
+                if any(k in err_str.lower() for k in ("403","401","unauthorized","expired","token")):
+                    logger.info(f"[WS-LIVE] user={user_id} auth error -> force re-login")
+                    with _ivas_lock: _ivas_sessions.pop(user_id, None)
+
+                # Fast retry: max 3s
+                time.sleep(min(consecutive_fail, 3))
+
             except Exception as e:
-                logger.error(f"[WS-LIVE] user={user_id} error: {e}")
+                consecutive_fail += 1
+                logger.error(f"[WS-LIVE] user={user_id} error ({consecutive_fail}): {e}")
                 _ws_set_status(user_id, live_connected=False, live_error=str(e))
-                fail_count += 1
-            if not get_ivas_session(user_id): break
-            time.sleep(min(reconnect_delay + fail_count*5, 120))
+                time.sleep(min(consecutive_fail, 3))
+
         logger.info(f"[WS-LIVE] user={user_id} thread stopped")
     t = threading.Thread(target=_run, name=f"ws-live-{user_id}", daemon=True)
     t.start()
+
 
 def ws_start_all(user_id: int):
     """Start KEDUA WebSocket thread (test + livesms) untuk 1 user."""
@@ -1574,22 +1697,39 @@ def api_sms_live():
 @app.route("/api/sms/live/stream")
 @ivas_required
 def api_sms_live_stream():
-    """SSE stream — push otomatis tiap ada SMS baru di cache livesms."""
-    uid     = g.uid
-    sid_f   = request.args.get("sid","").lower()
+    """SSE stream — push INSTANT tiap ada My SMS baru (no sleep, event-driven)."""
+    uid   = g.uid
+    sid_f = request.args.get("sid","").lower()
+    # Buat/ambil Event khusus user ini
+    ev = threading.Event()
+    _ws_event[uid] = ev
     last_ts = [""]
     def _gen():
-        yield 'data: {"type":"connected"}\n\n'
-        while True:
-            with _ws_lock:
-                items = list(_ws_live.get(uid,[]))
-            new = [i for i in items if i.get("received_at","") > last_ts[0]]
-            if sid_f: new = [i for i in new if sid_f in i.get("sid","").lower() or sid_f in i.get("message","").lower()]
-            for i in new:
-                yield f"data: {json.dumps(i)}\n\n"
-                if i.get("received_at","") > last_ts[0]:
-                    last_ts[0] = i["received_at"]
-            time.sleep(2)
+        try:
+            yield 'data: {"type":"connected"}\n\n'
+            while True:
+                # Tunggu sampai ada SMS baru, max 30s lalu kirim keepalive
+                triggered = ev.wait(timeout=30)
+                ev.clear()
+                if not triggered:
+                    # Keepalive ping supaya koneksi tidak putus
+                    yield ": keepalive\n\n"
+                    continue
+                # Ada SMS baru — kirim semua yang belum dikirim
+                with _ws_lock:
+                    items = list(_ws_live.get(uid,[]))
+                new = [i for i in items if i.get("received_at","") > last_ts[0]]
+                if sid_f:
+                    new = [i for i in new if
+                           sid_f in i.get("sid","").lower() or
+                           sid_f in i.get("message","").lower()]
+                for i in new:
+                    yield f"data: {json.dumps(i)}\n\n"
+                    if i.get("received_at","") > last_ts[0]:
+                        last_ts[0] = i["received_at"]
+        finally:
+            # Cleanup event saat client disconnect
+            _ws_event.pop(uid, None)
     return Response(stream_with_context(_gen()),
         mimetype="text/event-stream",
         headers={"Cache-Control":"no-cache","X-Accel-Buffering":"no"})
@@ -1636,22 +1776,34 @@ def api_sms_test():
 @app.route("/api/sms/test/stream")
 @ivas_required
 def api_sms_test_stream():
-    """SSE stream untuk test SMS real-time."""
+    """SSE stream untuk test SMS real-time — push INSTANT, no sleep."""
     uid   = g.uid
     sid_f = request.args.get("sid","").lower()
+    ev = threading.Event()
+    _ws_event[uid] = ev
     last_ts = [""]
     def _gen():
-        yield 'data: {"type":"connected"}\n\n'
-        while True:
-            with _ws_lock:
-                items = list(_ws_test.get(uid,[]))
-            new = [i for i in items if i.get("received_at","") > last_ts[0]]
-            if sid_f: new = [i for i in new if sid_f in i.get("sid","").lower() or sid_f in i.get("message","").lower()]
-            for i in new:
-                yield f"data: {json.dumps(i)}\n\n"
-                if i.get("received_at","") > last_ts[0]:
-                    last_ts[0] = i["received_at"]
-            time.sleep(2)
+        try:
+            yield 'data: {"type":"connected"}\n\n'
+            while True:
+                triggered = ev.wait(timeout=30)
+                ev.clear()
+                if not triggered:
+                    yield ": keepalive\n\n"
+                    continue
+                with _ws_lock:
+                    items = list(_ws_test.get(uid,[]))
+                new = [i for i in items if i.get("received_at","") > last_ts[0]]
+                if sid_f:
+                    new = [i for i in new if
+                           sid_f in i.get("sid","").lower() or
+                           sid_f in i.get("message","").lower()]
+                for i in new:
+                    yield f"data: {json.dumps(i)}\n\n"
+                    if i.get("received_at","") > last_ts[0]:
+                        last_ts[0] = i["received_at"]
+        finally:
+            _ws_event.pop(uid, None)
     return Response(stream_with_context(_gen()),
         mimetype="text/event-stream",
         headers={"Cache-Control":"no-cache","X-Accel-Buffering":"no"})
@@ -1822,7 +1974,6 @@ def api_add_number():
         if not tid: continue
         ok, msg = ivas_add_number(uid, tid)
         (results if ok else errors).append({"number":raw_num,"range":rng,"termination_id":tid,"message":msg})
-        time.sleep(0.2)
     return jsonify({"status":"ok","added":len(results),"failed":len(errors),
                     "results":results,"errors":errors})
 

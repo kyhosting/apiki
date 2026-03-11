@@ -4,217 +4,254 @@
 <style>
 .iv-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden}
 .iv-banner{background:#f59e0b;padding:10px 18px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#fff}
-/* two-col layout */
-.live-wrap{display:grid;grid-template-columns:1fr 220px;min-height:400px}
+.live-wrap{display:grid;grid-template-columns:1fr 210px;min-height:420px}
 .live-left{border-right:1px solid var(--border);overflow-x:auto}
-.live-right{padding:14px;overflow-y:auto;max-height:600px}
-.live-right-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);margin-bottom:10px}
-/* main table */
+.live-right{padding:14px;overflow-y:auto;max-height:620px}
+.live-right-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);margin-bottom:10px}
 .ltbl{width:100%;border-collapse:collapse}
 .ltbl thead th{padding:8px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);background:var(--bg2);border-bottom:2px solid var(--border);white-space:nowrap}
-.ltbl tbody td{padding:10px 14px;border-bottom:1px solid var(--border);font-size:12.5px;vertical-align:middle}
+.ltbl tbody td{padding:9px 14px;border-bottom:1px solid var(--border);font-size:12.5px;vertical-align:middle}
 .ltbl tbody tr:hover td{background:rgba(245,158,11,.05)}
-.ltbl tbody tr:last-child td{border-bottom:none}
-/* counters topbar */
-.live-topbar{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--border);background:var(--bg2);flex-wrap:wrap}
-.live-cnt{font-size:12px;color:var(--ink2);font-family:var(--mono)}
-.live-cnt b{color:var(--accent)}
-.badge-pill{background:rgba(34,197,94,.12);color:#22c55e;font-size:11px;font-weight:700;padding:2px 9px;border-radius:8px;font-family:var(--mono)}
-.badge-pill.red{background:rgba(239,68,68,.12);color:#ef4444}
-.badge-pill.gray{background:var(--card2);color:var(--ink3)}
-/* right-panel range items */
-.rng-item{padding:8px 12px;border-radius:8px;background:var(--card2);border:1px solid var(--border);margin-bottom:6px;cursor:pointer;transition:.12s}
-.rng-item:hover{border-color:var(--accent)}
-.rng-item-name{font-size:12px;font-weight:600;color:var(--ink)}
-.rng-item-cnt{font-size:11px;font-family:var(--mono);color:var(--ink3);margin-top:2px}
-.rng-item.active{border-color:#f59e0b;background:rgba(245,158,11,.08)}
-/* msg cell */
-.msg-text{max-width:340px;word-break:break-word;line-height:1.5}
-.sid-pill{background:#f59e0b;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:5px;display:inline-block;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.paid-badge{background:rgba(34,197,94,.13);color:#22c55e;font-size:10px;font-weight:700;padding:1px 7px;border-radius:5px}
-.unpaid-badge{background:rgba(239,68,68,.13);color:#ef4444;font-size:10px;font-weight:700;padding:1px 7px;border-radius:5px}
-.limit-badge{font-size:11px;color:var(--ink3);font-family:var(--mono)}
-.iv-empty{text-align:center;padding:44px;color:var(--ink3);font-size:13px}
-/* controls */
-.ctrl-bar{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+/* new-row flash animation */
+@keyframes rowflash{0%{background:rgba(245,158,11,.22)}100%{background:transparent}}
+.row-new{animation:rowflash .8s ease-out}
+.ctrl-bar{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap}
 .ctrl-inp{padding:6px 11px;border:1px solid var(--border2);border-radius:7px;background:var(--card);color:var(--ink);font-size:12px;width:160px}
-.ctrl-btn{background:var(--accent);color:#fff;border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;transition:.15s}
-.ctrl-btn:hover{opacity:.85}
-.ctrl-btn.red{background:#ef4444}
-.ctrl-btn.gray{background:var(--card2);color:var(--ink2);border:1px solid var(--border2)}
-.ctrl-btn.gray:hover{background:var(--border)}
+.ctrl-btn{border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;transition:.15s}
+.ctrl-btn.primary{background:var(--accent);color:#fff}.ctrl-btn.primary:hover{opacity:.85}
+.ctrl-btn.gray{background:var(--card2);color:var(--ink2);border:1px solid var(--border2)}.ctrl-btn.gray:hover{background:var(--border)}
+.ctrl-btn.red{background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.2)}.ctrl-btn.red:hover{background:#ef4444;color:#fff}
+.stat-bar{display:flex;align-items:center;gap:14px;padding:9px 14px;border-bottom:1px solid var(--border);background:var(--bg2);flex-wrap:wrap}
+.stat-item{font-size:12px;color:var(--ink2)}
+.stat-item b{color:var(--ink);font-family:var(--mono)}
 .dot-live{width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;box-shadow:0 0 6px #22c55e;animation:pulse 1.5s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.dot-dead{width:8px;height:8px;border-radius:50%;background:#ef4444;display:inline-block}
+.dot-wait{width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.ws-badge{font-size:11px;font-weight:700;padding:2px 9px;border-radius:8px;margin-left:auto}
+.ws-badge.ok{background:rgba(34,197,94,.13);color:#22c55e}
+.ws-badge.warn{background:rgba(245,158,11,.13);color:#f59e0b}
+.ws-badge.err{background:rgba(239,68,68,.13);color:#ef4444}
+.sid-pill{background:#f59e0b;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:5px;display:inline-block;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.paid-b{background:rgba(34,197,94,.13);color:#22c55e;font-size:10px;font-weight:700;padding:1px 7px;border-radius:5px}
+.unpaid-b{background:rgba(239,68,68,.13);color:#ef4444;font-size:10px;font-weight:700;padding:1px 7px;border-radius:5px}
+.num-cell{font-family:var(--mono);font-size:12px;color:var(--ink2)}
+.rng-item{padding:8px 10px;border-radius:8px;background:var(--card2);border:1px solid var(--border);margin-bottom:6px;font-size:12px}
+.rng-item-name{font-weight:600;color:var(--ink)}
+.rng-item-cnt{font-size:11px;color:var(--ink3);font-family:var(--mono);margin-top:2px}
+.iv-empty{text-align:center;padding:44px;color:var(--ink3);font-size:13px}
 @media(max-width:640px){.live-wrap{grid-template-columns:1fr}.live-right{border-top:1px solid var(--border)}}
 </style>
 
 <div class="page-hdr">
   <div class="page-title">📡 Live SMS</div>
-  <div class="page-sub">SMS masuk ke nomor kamu secara real-time</div>
+  <div class="page-sub">SMS masuk ke nomor kamu — real-time instant, no delay</div>
 </div>
 
 <div class="iv-card">
+  <!-- Banner -->
   <div class="iv-banner">
-    <span class="dot-live"></span>
-    Live SMS
-    <span id="liveCntLabel" style="margin-left:auto;font-size:11px;font-weight:400;opacity:.85">0 SMS Today</span>
+    <span id="dotIcon" class="dot-wait"></span>
+    Live SMS — My Numbers
+    <span id="wsBadge" class="ws-badge warn" style="margin-left:auto">⟳ Connecting...</span>
   </div>
 
-  <!-- controls -->
+  <!-- Filter bar -->
   <div class="ctrl-bar">
-    <input type="text" id="sidFilter" class="ctrl-inp" placeholder="Filter by SID/service..." oninput="applyFilter()"/>
-    <input type="text" id="numFilter" class="ctrl-inp" placeholder="Filter by number..." oninput="applyFilter()"/>
-    <button class="ctrl-btn" onclick="doRefresh()">↻ Refresh</button>
-    <button class="ctrl-btn gray" onclick="doClear()">✕ Clear</button>
-    <span id="autoLabel" style="font-size:11px;color:var(--ink3);margin-left:auto">
-      <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
-        <input type="checkbox" id="autoRefresh" checked onchange="toggleAuto()"/>
-        <span>Auto-refresh 10s</span>
-      </label>
-    </span>
+    <input type="text" id="sidFilter" class="ctrl-inp" placeholder="Filter SID / service..." oninput="applyFilter()"/>
+    <input type="text" id="numFilter" class="ctrl-inp" placeholder="Filter number..." oninput="applyFilter()"/>
+    <button class="ctrl-btn gray" onclick="doManualRefresh()">↻ Refresh</button>
+    <button class="ctrl-btn red"  onclick="doClear()">✕ Clear</button>
   </div>
 
-  <!-- topbar stats -->
-  <div class="live-topbar">
-    <span class="live-cnt">Total: <b id="cntTotal">0</b></span>
-    <span class="live-cnt">Today: <b id="cntToday">0</b></span>
-    <span id="wsStat" class="badge-pill gray">⬤ Connecting...</span>
-    <span id="srcLabel" style="font-size:11px;color:var(--ink3);margin-left:auto"></span>
+  <!-- Stats bar -->
+  <div class="stat-bar">
+    <span class="stat-item">Total: <b id="cntTotal">0</b></span>
+    <span class="stat-item">Session: <b id="cntSession">0</b></span>
+    <span class="stat-item">Source: <b id="srcLabel">-</b></span>
+    <span id="lastEvt" style="margin-left:auto;font-size:11px;color:var(--ink3)"></span>
   </div>
 
-  <!-- two-col body -->
+  <!-- Two-col body -->
   <div class="live-wrap">
-    <!-- left: SMS table -->
+    <!-- Left: SMS table -->
     <div class="live-left">
       <table class="ltbl">
         <thead>
           <tr>
-            <th>Live SMS</th>
+            <th>Number</th>
             <th>SID</th>
             <th>Paid</th>
-            <th>Limit</th>
-            <th style="width:40%">Message Content</th>
+            <th style="width:45%">Message</th>
+            <th>Time</th>
           </tr>
         </thead>
         <tbody id="liveBody">
-          <tr><td colspan="5" class="iv-empty"><span class="spin"></span> Memuat...</td></tr>
+          <tr><td colspan="5" class="iv-empty">
+            <span class="dot-wait" style="vertical-align:middle;margin-right:6px"></span>
+            Menghubungkan ke WebSocket iVAS...
+          </td></tr>
         </tbody>
       </table>
     </div>
 
-    <!-- right: ranges panel -->
+    <!-- Right: Ranges panel -->
     <div class="live-right">
       <div class="live-right-title">My Numbers</div>
-      <div id="rngPanel">
-        <div class="rng-item"><div class="rng-item-name">Loading...</div></div>
-      </div>
+      <div id="rngPanel"><div style="font-size:12px;color:var(--ink3)"><span class="spin"></span></div></div>
     </div>
   </div>
 </div>
 
 <script>
-let _allSms = [];
-let _autoTimer = null;
+let _all = [];        // semua SMS yang diterima session ini
+let _filtered = [];   // setelah filter
+let _sse = null;      // EventSource object
+let _sseRetry = 0;
+const MAX_DISPLAY = 500;
 
-async function doRefresh() {
-  const sidF = document.getElementById('sidFilter').value.trim().toLowerCase();
-  const numF = document.getElementById('numFilter').value.trim();
-  const params = new URLSearchParams({limit:200});
-  if (sidF) params.set('sid', sidF);
-  if (numF) params.set('number', numF);
-
-  try {
-    const d = await apiFetch(`/api/sms/live?${params}`);
-    _allSms = d.sms || [];
-    renderTable(_allSms);
-    updateStats(d);
-    // update ws status
-    const ws = document.getElementById('wsStat');
-    if (d.source === 'websocket_live_cache') {
-      ws.textContent = '⬤ WS Live'; ws.className='badge-pill';
-    } else {
-      ws.textContent = '⬤ Scrape'; ws.className='badge-pill gray';
-    }
-    document.getElementById('srcLabel').textContent = d.source||'';
-  } catch(e) {
-    console.error(e);
-  }
-}
-
-function renderTable(sms) {
+// ── Render table ──────────────────────────────────
+function renderTable(rows, flash=false) {
   const body = document.getElementById('liveBody');
-  if (!sms.length) {
-    body.innerHTML='<tr><td colspan="5" class="iv-empty">Belum ada SMS. Tunggu atau klik Refresh.</td></tr>';
+  if (!rows.length) {
+    body.innerHTML = '<tr><td colspan="5" class="iv-empty">Belum ada SMS. Tunggu SMS masuk...</td></tr>';
     return;
   }
-  body.innerHTML = sms.map(s=>`
-  <tr>
-    <td style="font-family:var(--mono);font-size:12px;color:var(--ink2);white-space:nowrap">${escHtml(s.number||s.originator||'')}</td>
+  // Hanya tampil 200 terakhir (biar performa tetap oke)
+  const display = rows.slice(0, 200);
+  body.innerHTML = display.map((s, idx) => `
+  <tr class="${flash && idx===0 ? 'row-new' : ''}">
+    <td class="num-cell">${escHtml(s.number||s.originator||'-')}</td>
     <td>${s.sid?`<span class="sid-pill">${escHtml(s.sid)}</span>`:'-'}</td>
-    <td>${s.paid==='Paid'?'<span class="paid-badge">Paid</span>':'<span class="unpaid-badge">Unpaid</span>'}</td>
-    <td><span class="limit-badge">${s.in_limit===false?'Over':'In'}</span></td>
-    <td class="msg-text">${escHtml(s.message||'')}</td>
+    <td>${s.paid==='Paid'?'<span class="paid-b">Paid</span>':'<span class="unpaid-b">Unpaid</span>'}</td>
+    <td style="word-break:break-word;line-height:1.5;max-width:280px">${escHtml(s.message||'')}</td>
+    <td style="font-family:var(--mono);font-size:11px;color:var(--ink3);white-space:nowrap">${(s.received_at||'').slice(11,19)}</td>
   </tr>`).join('');
-  document.getElementById('cntTotal').textContent = sms.length;
-  document.getElementById('liveCntLabel').textContent = sms.length + ' SMS Today';
-}
-
-function updateStats(d) {
-  document.getElementById('cntToday').textContent = (d.sms||[]).length;
+  document.getElementById('cntTotal').textContent = rows.length;
+  document.getElementById('cntSession').textContent = _all.length;
 }
 
 function applyFilter() {
-  const sidF = document.getElementById('sidFilter').value.trim().toLowerCase();
-  const numF = document.getElementById('numFilter').value.trim();
-  let filtered = _allSms;
-  if (sidF) filtered = filtered.filter(s=>(s.sid||'').toLowerCase().includes(sidF)||(s.message||'').toLowerCase().includes(sidF));
-  if (numF) filtered = filtered.filter(s=>(s.number||'').includes(numF)||(s.originator||'').includes(numF));
-  renderTable(filtered);
+  const sf = document.getElementById('sidFilter').value.trim().toLowerCase();
+  const nf = document.getElementById('numFilter').value.trim();
+  _filtered = _all;
+  if (sf) _filtered = _filtered.filter(s =>
+    (s.sid||'').toLowerCase().includes(sf) || (s.message||'').toLowerCase().includes(sf));
+  if (nf) _filtered = _filtered.filter(s =>
+    (s.number||'').includes(nf) || (s.originator||'').includes(nf));
+  renderTable(_filtered);
 }
 
-async function doClear() {
-  await apiFetch('/api/sms/live/clear', {method:'POST'});
-  _allSms = [];
-  renderTable([]);
-  document.getElementById('cntTotal').textContent='0';
-  document.getElementById('cntToday').textContent='0';
+// ── SSE EventSource — instant push ───────────────
+function connectSSE() {
+  if (_sse) { try { _sse.close(); } catch(_) {} }
+
+  setBadge('connecting');
+  const url = '/api/sms/live/stream';
+  _sse = new EventSource(url);
+
+  _sse.onopen = () => {
+    setBadge('connected');
+    _sseRetry = 0;
+    console.log('[SSE] connected');
+  };
+
+  _sse.onmessage = (e) => {
+    try {
+      const d = JSON.parse(e.data);
+      if (d.type === 'connected') { setBadge('connected'); return; }
+      // SMS baru masuk — tambah ke depan
+      _all.unshift(d);
+      if (_all.length > MAX_DISPLAY) _all.pop();
+      document.getElementById('lastEvt').textContent =
+        'Last: ' + (d.received_at||'').slice(11,19);
+      document.getElementById('srcLabel').textContent = d.source || 'ws_live';
+      applyFilter();
+      renderTable(_filtered, true);  // flash baris pertama
+    } catch(_) {}
+  };
+
+  _sse.onerror = () => {
+    setBadge('error');
+    _sse.close();
+    // Reconnect otomatis: 1s, 2s, 3s... max 5s
+    _sseRetry = Math.min(_sseRetry + 1, 5);
+    setTimeout(connectSSE, _sseRetry * 1000);
+    console.log(`[SSE] error, retry in ${_sseRetry}s`);
+  };
 }
 
-function toggleAuto() {
-  if (_autoTimer) { clearInterval(_autoTimer); _autoTimer=null; }
-  if (document.getElementById('autoRefresh').checked) {
-    _autoTimer = setInterval(doRefresh, 10000);
+function setBadge(state) {
+  const badge = document.getElementById('wsBadge');
+  const dot   = document.getElementById('dotIcon');
+  if (state === 'connected') {
+    badge.textContent = '⬤ WS Live'; badge.className = 'ws-badge ok';
+    dot.className = 'dot-live';
+  } else if (state === 'error') {
+    badge.textContent = '⬤ Disconnected'; badge.className = 'ws-badge err';
+    dot.className = 'dot-dead';
+  } else {
+    badge.textContent = '⟳ Connecting...'; badge.className = 'ws-badge warn';
+    dot.className = 'dot-wait';
   }
 }
 
+// ── Manual refresh — load history dari cache ──────
+async function doManualRefresh() {
+  try {
+    const d = await apiFetch('/api/sms/live?limit=200');
+    const newItems = d.sms || [];
+    // Merge dengan yang sudah ada, hindari duplikat
+    const seen = new Set(_all.map(s => s.received_at + s.number + s.message));
+    for (const s of newItems) {
+      const key = s.received_at + s.number + s.message;
+      if (!seen.has(key)) { _all.push(s); seen.add(key); }
+    }
+    _all.sort((a,b) => (b.received_at||'').localeCompare(a.received_at||''));
+    document.getElementById('srcLabel').textContent = d.source||'cache';
+    applyFilter();
+    renderTable(_filtered);
+  } catch(e) { console.error(e); }
+}
+
+// ── Clear cache ────────────────────────────────────
+async function doClear() {
+  await apiFetch('/api/sms/live/clear', {method:'POST'});
+  _all = []; _filtered = [];
+  renderTable([]);
+  document.getElementById('cntTotal').textContent = '0';
+  document.getElementById('cntSession').textContent = '0';
+}
+
+// ── Load ranges panel ──────────────────────────────
 async function loadRanges() {
   const panel = document.getElementById('rngPanel');
   try {
-    const d = await apiFetch('/api/numbers/my-list?limit=200');
-    const nums = d.numbers||[];
-    // group by range
+    const d = await apiFetch('/api/numbers/my-list?limit=500');
+    const nums = d.numbers || [];
     const rngs = {};
     for (const n of nums) {
-      const r = n.range_name||'Unknown';
+      const r = n.range_name || 'Unknown';
       if (!rngs[r]) rngs[r] = 0;
       rngs[r]++;
     }
     if (!Object.keys(rngs).length) {
-      panel.innerHTML='<div style="font-size:12px;color:var(--ink3)">Belum ada nomor.</div>'; return;
+      panel.innerHTML = '<div style="font-size:12px;color:var(--ink3)">Belum ada nomor.</div>';
+      return;
     }
-    panel.innerHTML = Object.entries(rngs).map(([r,c])=>`
+    panel.innerHTML = Object.entries(rngs).map(([r,c]) => `
     <div class="rng-item">
       <div class="rng-item-name">${escHtml(r)}</div>
       <div class="rng-item-cnt">${c} number${c>1?'s':''}</div>
     </div>`).join('');
   } catch(e) {
-    panel.innerHTML='<div style="font-size:12px;color:#ef4444">Error load ranges</div>';
+    panel.innerHTML = '<div style="font-size:12px;color:#ef4444">Gagal load</div>';
   }
 }
 
-// init
-doRefresh();
+// ── Init ───────────────────────────────────────────
+connectSSE();
+doManualRefresh();
 loadRanges();
-_autoTimer = setInterval(doRefresh, 10000);
 </script>
 {% endblock %}
