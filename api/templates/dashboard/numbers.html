@@ -15,7 +15,7 @@
 .btn-sm{padding:6px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:.15s}
 .btn-primary{background:#f59e0b;color:#fff}.btn-primary:hover{opacity:.85}
 .btn-outline{background:var(--card2);color:var(--ink2);border:1px solid var(--border2)}.btn-outline:hover{background:var(--border)}
-.ntbl{width:100%;border-collapse:collapse;min-width:560px}
+.ntbl{width:100%;border-collapse:collapse;min-width:720px}
 .ntbl thead th{padding:8px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);background:var(--bg2);border-bottom:2px solid var(--border);white-space:nowrap;text-align:left}
 .ntbl tbody td{padding:9px 12px;border-bottom:1px solid var(--border);font-size:13px;color:var(--ink);vertical-align:middle}
 .ntbl tbody tr:hover td{background:rgba(245,158,11,.04)}
@@ -181,8 +181,24 @@
 <script>
 // ── Local helpers (avoids base.html timing issue with apiFetch) ──
 async function _apiFetch(url, opts={}) {
-  const r = await fetch(url, {headers:{'Content-Type':'application/json'}, ...opts})
-  if (r.status === 401) { window.location.href='/login'; return null }
+  // FIX: jangan paksa Content-Type JSON untuk semua request
+  // POST tanpa body pakai default, biar backend baca dari query string
+  const r = await fetch(url, opts)
+  if (r.status === 401) {
+    // 401 = session APP expired → redirect ke login APP
+    window.location.href = '/login'; return null
+  }
+  if (r.status === 403) {
+    // FIX: 403 = iVAS session expired, BUKAN logout app
+    // Jangan redirect ke /login, cukup tampilkan toast dan return data
+    let d = {}; try { d = await r.json() } catch {}
+    if (d.ivas_expired) {
+      showToast('⚠️ Session iVAS expired — otomatis login ulang, refresh sebentar', 'warn')
+      // Trigger auto re-login di background
+      setTimeout(() => fetch('/api/ivas/status').catch(()=>{}), 500)
+    }
+    return d
+  }
   return r.json()
 }
 function _esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
@@ -362,9 +378,15 @@ async function addNum(tid,num,btn){
   btn.disabled=true; btn.textContent='⏳';
   try{
     const d=await _apiFetch(`/api/numbers/add?termination_id=${tid}`,{method:'POST'});
-    if(d.success){ showToast(num+' berhasil ditambahkan ✅'); btn.textContent='✅'; }
-    else{ showToast(d.message||'Gagal','error'); btn.disabled=false; btn.textContent='➕'; }
-  }catch(e){ showToast(e.message,'error'); btn.disabled=false; btn.textContent='➕'; }
+    if(!d){ btn.disabled=false; btn.textContent='➕'; return; }
+    // FIX: response bisa {status:"ok",success:true} atau {success:true}
+    const ok = d.success===true || d.status==='ok' && d.success!==false;
+    if(ok){ showToast((num||'Nomor')+' berhasil ditambahkan ✅'); btn.textContent='✅'; btn.style.background='#22c55e'; }
+    else{
+      const msg = d.message || d.error || 'Gagal menambahkan nomor';
+      showToast(msg, 'error'); btn.disabled=false; btn.textContent='➕';
+    }
+  }catch(e){ showToast('Error: '+e.message,'error'); btn.disabled=false; btn.textContent='➕'; }
 }
 
 // MODAL
@@ -390,16 +412,19 @@ async function modalAddNumber(){
   btn.disabled=true; btn.textContent='⏳ Adding...';
   try{
     const d=await _apiFetch(`/api/numbers/add?termination_id=${_mTermId}`,{method:'POST'});
-    if(d.success){ showToast(_mTestNum+' berhasil ditambahkan ✅'); btn.textContent='✅ Added!'; setTimeout(closeModal,1200); }
-    else{ showToast(d.message||'Gagal','error'); btn.disabled=false; btn.textContent='➕ Add Number'; }
-  }catch(e){ showToast(e.message,'error'); btn.disabled=false; btn.textContent='➕ Add Number'; }
+    if(!d){ btn.disabled=false; btn.textContent='➕ Add Number'; return; }
+    const ok = d.success===true || d.status==='ok' && d.success!==false;
+    if(ok){ showToast((_mTestNum||'Nomor')+' berhasil ditambahkan ✅'); btn.textContent='✅ Added!'; setTimeout(closeModal,1200); }
+    else{ showToast(d.message||d.error||'Gagal','error'); btn.disabled=false; btn.textContent='➕ Add Number'; }
+  }catch(e){ showToast('Error: '+e.message,'error'); btn.disabled=false; btn.textContent='➕ Add Number'; }
 }
 
 function showToast(msg,type='ok'){
   const el=document.createElement('div');
-  el.style.cssText=`position:fixed;bottom:24px;right:24px;z-index:9999;padding:10px 18px;border-radius:10px;font-size:13px;font-weight:600;color:#fff;background:${type==='ok'?'#22c55e':'#ef4444'};box-shadow:0 4px 20px rgba(0,0,0,.4)`;
+  const bg = type==='ok'?'#22c55e': type==='warn'?'#f59e0b':'#ef4444';
+  el.style.cssText=`position:fixed;bottom:24px;right:24px;z-index:9999;padding:10px 18px;border-radius:10px;font-size:13px;font-weight:600;color:#fff;background:${bg};box-shadow:0 4px 20px rgba(0,0,0,.4);max-width:320px;line-height:1.4`;
   el.textContent=msg; document.body.appendChild(el);
-  setTimeout(()=>el.remove(),3000);
+  setTimeout(()=>el.remove(), type==='warn'?5000:3000);
 }
 
 loadMy();

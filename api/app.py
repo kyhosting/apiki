@@ -192,10 +192,17 @@ def to_ivas_date(s):
 def _is_expired(r):
     if r is None: return True
     url = getattr(r, "url", "") or ""
+    # Redirect ke halaman login iVAS
     if "/login" in url: return True
+    # HTTP unauthorized/forbidden
+    if getattr(r, "status_code", 200) in (401, 403): return True
     try:
         t = r.text[:3000].lower()
-        if any(k in t for k in ("forgot your password","login to your account")): return True
+        if any(k in t for k in (
+            "forgot your password", "login to your account",
+            "unauthenticated", "session expired", "login here",
+            "please login", "sign in to continue"
+        )): return True
     except: pass
     return False
 
@@ -353,20 +360,25 @@ def get_ivas_session(user_id: int, force=False) -> dict | None:
     return None
 
 def do_ivas(user_id, method, url, data=None, headers=None):
-    """Request ke iVAS dengan CSRF rotating fix. Auto re-login kalau expired."""
+    """Request ke iVAS dengan CSRF rotating fix. Auto re-login kalau expired.
+    Retry 2x: attempt 0 = pakai session aktif, attempt 1 = force re-login.
+    """
     data  = dict(data) if data else {}
-    for attempt in range(2):
+    for attempt in range(3):
         sess = get_ivas_session(user_id, force=(attempt > 0))
         if not sess:
-            # Auto re-login
+            # Auto re-login dari kredensial tersimpan
             c2 = db()
             u  = c2.execute("SELECT ivas_email,ivas_pass FROM ky_users WHERE id=?",(user_id,)).fetchone()
             c2.close()
             if u and u["ivas_email"]:
+                logger.info(f"[do_ivas] Auto re-login user={user_id} attempt={attempt}")
                 new_s = ivas_login(user_id, u["ivas_email"], u["ivas_pass"])
                 if new_s.get("ok"):
                     sess = new_s
+                    logger.info(f"[do_ivas] Re-login BERHASIL user={user_id}")
                 else:
+                    logger.warning(f"[do_ivas] Re-login GAGAL user={user_id}: {new_s.get('error')}")
                     return None, "Login iVAS gagal"
             else:
                 return None, "Belum ada kredensial iVAS"
@@ -403,14 +415,17 @@ def do_ivas(user_id, method, url, data=None, headers=None):
                 r = scraper.get(url, params=data, **kw)
 
             if _is_expired(r):
-                logger.warning(f"[iVAS-REQ] Session expired user={user_id} attempt {attempt+1}, re-login...")
+                logger.warning(f"[do_ivas] Session expired user={user_id} attempt={attempt+1}, force re-login next...")
                 with _ivas_lock:
                     _ivas_sessions.pop(user_id, None)
-                continue
+                if attempt < 2:
+                    continue
+                return None, "Session terus expired setelah re-login"
             return r, None
         except Exception as e:
-            logger.error(f"[iVAS-REQ] user={user_id} attempt={attempt}: {e}")
-    return None, "Request gagal"
+            logger.error(f"[do_ivas] user={user_id} attempt={attempt}: {e}")
+            if attempt < 2: continue
+    return None, "Request gagal setelah 3 percobaan"
 
 # ─── Helper: clean iVAS HTML ─────────────────────────────────────
 def _clean_html(raw):
@@ -1370,20 +1385,22 @@ def ivas_required(f):
                 logger.info(f"[ivas_required] Auto re-login iVAS untuk user={uid}...")
                 result = ivas_login(uid, u["ivas_email"], u["ivas_pass"])
                 if result.get("ok"):
-                    logger.info(f"[ivas_required] Auto re-login BERHASIL user={uid}")
+                    logger.info(f"[ivas_required] Auto re-login BERHASIL user={uid}, lanjut execute request")
                     threading.Thread(target=ws_start_all, args=(uid,), daemon=True).start()
                     sess = result
+                    # Langsung lanjut — jangan return error kalau re-login sukses
                 else:
                     logger.warning(f"[ivas_required] Auto re-login GAGAL user={uid}: {result.get('error')}")
                     return jsonify({
-                        "status":"error",
-                        "message":"Session iVAS expired. Sedang mencoba login ulang, refresh sebentar.",
-                        "ivas_expired": True
+                        "status": "error",
+                        "message": "Session iVAS expired dan login ulang gagal. Coba login iVAS manual.",
+                        "ivas_expired": True,
+                        "redirect": "/dashboard/ivas-login"
                     }), 403
             else:
                 return jsonify({
-                    "status":"error",
-                    "message":"Belum login ke iVAS. Pergi ke halaman Login iVAS.",
+                    "status": "error",
+                    "message": "Belum login ke iVAS. Pergi ke halaman Login iVAS.",
                     "redirect": "/dashboard/ivas-login",
                     "ivas_expired": True
                 }), 403
