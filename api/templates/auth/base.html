@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}{% block auth_title %}Auth{% endblock %} — KY-SHIRO{% endblock %}
+{% block head %}
+<style>
+body{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;background:var(--bg);background-image:radial-gradient(ellipse 600px 400px at 50% 0%,rgba(124,111,255,.1) 0%,transparent 70%)}
+.auth-wrap{width:100%;max-width:420px}
+.auth-logo{text-align:center;margin-bottom:28px}
+.auth-logo-mark{width:52px;height:52px;border-radius:14px;background:var(--accent);display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;color:#fff;font-family:var(--mono);margin-bottom:12px;box-shadow:0 4px 20px rgba(124,111,255,.3)}
+.auth-logo-name{font-size:17px;font-weight:800;color:var(--ink)}.auth-logo-name em{color:var(--accent);font-style:normal}
+.auth-logo-sub{font-size:12px;color:var(--ink3);font-family:var(--mono);margin-top:2px}
+.auth-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:32px}
+.auth-title{font-size:20px;font-weight:800;color:var(--ink);margin-bottom:4px}
+.auth-sub{font-size:13.5px;color:var(--ink2);margin-bottom:24px}
+.pw-wrap{position:relative}
+.pw-eye{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--ink3);cursor:pointer;font-size:16px;transition:color .2s;user-select:none}
+.pw-eye:hover{color:var(--ink2)}
+.btn-auth{width:100%;padding:12px;border-radius:10px;background:var(--accent);color:#fff;font-size:15px;font-weight:700;transition:all .2s;cursor:pointer;border:none;font-family:var(--sans);margin-top:4px}
+.btn-auth:hover{background:var(--accent2);box-shadow:0 4px 20px rgba(124,111,255,.3)}
+.btn-auth:disabled{opacity:.6;cursor:not-allowed}
+.auth-footer{text-align:center;margin-top:18px;font-size:13.5px;color:var(--ink2)}
+.auth-footer a{color:var(--accent);font-weight:600}
+.auth-footer a:hover{text-decoration:underline}
+.otp-input{font-size:24px;text-align:center;letter-spacing:10px;font-family:var(--mono);font-weight:700}
+</style>
+{% endblock %}
+{% block body %}
+<div class="auth-wrap">
+  <div class="auth-logo">
+    <a href="/"><div class="auth-logo-mark">KY</div><div class="auth-logo-name"><em>KY-SHIRO</em> API</div><div class="auth-logo-sub">SMS OTP Platform</div></a>
+  </div>
+  <div class="auth-card">
+    {% block auth_body %}{% endblock %}
+  </div>
+</div>
+{% endblock %}

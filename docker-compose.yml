@@ -1,0 +1,51 @@
+version: "3.9"
+
+services:
+  # ── Flask API ──────────────────────────────────────────
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: kyshiro-api
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-kyshiro-change-in-production}
+      - WA_BOT_URL=http://wa-bot:3001
+      - WA_BOT_TOKEN=${WA_BOT_TOKEN:-kyshiro-wa-secret}
+      - DB_PATH=/data/kyshiro.db
+      - PORT=5000
+    volumes:
+      - kyshiro-data:/data
+    depends_on:
+      - wa-bot
+    networks:
+      - kyshiro-net
+
+  # ── Baileys WA Bot ─────────────────────────────────────
+  wa-bot:
+    build:
+      context: ./wa-bot
+      dockerfile: Dockerfile
+    container_name: kyshiro-wa-bot
+    restart: always
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - WA_BOT_TOKEN=${WA_BOT_TOKEN:-kyshiro-wa-secret}
+      - AUTH_DIR=/app/wa-auth
+      - LOG_LEVEL=silent
+    volumes:
+      - wa-auth:/app/wa-auth
+    networks:
+      - kyshiro-net
+
+volumes:
+  kyshiro-data:
+  wa-auth:
+
+networks:
+  kyshiro-net:
+    driver: bridge

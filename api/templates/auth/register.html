@@ -1,0 +1,59 @@
+{% extends "auth/base.html" %}
+{% block auth_title %}Daftar{% endblock %}
+{% block auth_body %}
+<div class="auth-title">Buat akun baru</div>
+<div class="auth-sub">Daftar untuk akses KY-SHIRO API</div>
+{% if error %}<div class="alert alert-err">✗ {{ error }}</div>{% endif %}
+<form method="POST" id="F" style="max-height:65vh;overflow-y:auto;padding-right:4px">
+  <div class="form-group">
+    <label class="form-label">Username</label>
+    <input type="text" name="username" class="form-input" placeholder="Contoh: john_doe" pattern="[a-zA-Z0-9_]{3,20}" required/>
+    <div class="form-hint">3–20 karakter. Huruf, angka, underscore.</div>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Nama Lengkap</label>
+    <input type="text" name="nama" class="form-input" placeholder="Nama kamu" required/>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Email</label>
+    <input type="email" name="email" class="form-input" placeholder="email@kamu.com" required/>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Nomor WhatsApp</label>
+    <input type="text" name="nomor_wa" class="form-input" placeholder="Contoh: 6281234567890" required/>
+    <div class="form-hint">Format internasional tanpa +. OTP verifikasi dikirim ke sini.</div>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Password</label>
+    <div class="pw-wrap">
+      <input type="password" name="password" id="pw1" class="form-input" placeholder="Minimal 8 karakter" required/>
+      <span class="pw-eye" onclick="tgl('pw1')">👁</span>
+    </div>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Konfirmasi Password</label>
+    <div class="pw-wrap">
+      <input type="password" name="password2" id="pw2" class="form-input" placeholder="Ulangi password" required/>
+      <span class="pw-eye" onclick="tgl('pw2')">👁</span>
+    </div>
+    <div id="pmatch" class="form-hint" style="display:none"></div>
+  </div>
+  <button type="submit" class="btn-auth" id="B">Daftar &amp; Kirim OTP WhatsApp</button>
+</form>
+<div class="auth-footer" style="margin-top:14px">Sudah punya akun? <a href="/login">Masuk</a></div>
+<script>
+function tgl(id){const f=document.getElementById(id);f.type=f.type==='password'?'text':'password'}
+const p2=document.getElementById('pw2'),h=document.getElementById('pmatch');
+p2.addEventListener('input',()=>{
+  const p1=document.getElementById('pw1');
+  h.style.display=p2.value?'block':'none';
+  if(p1.value===p2.value){h.style.color='var(--green)';h.textContent='✓ Password cocok'}
+  else{h.style.color='var(--red)';h.textContent='✗ Tidak cocok'}
+});
+document.getElementById('F').onsubmit=function(e){
+  const p1=document.getElementById('pw1');
+  if(p1.value!==p2.value){e.preventDefault();return}
+  const b=document.getElementById('B');b.disabled=true;b.innerHTML='<span class="spin"></span> Mengirim OTP...';
+};
+</script>
+{% endblock %}

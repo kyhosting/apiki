@@ -1,0 +1,29 @@
+{% extends "auth/base.html" %}
+{% block auth_title %}Masuk{% endblock %}
+{% block auth_body %}
+<div class="auth-title">Selamat datang</div>
+<div class="auth-sub">Masuk ke dashboard KY-SHIRO</div>
+{% if error %}<div class="alert alert-err">✗ {{ error }}</div>{% endif %}
+<form method="POST" id="F">
+  <div class="form-group">
+    <label class="form-label">Username</label>
+    <input type="text" name="username" class="form-input" placeholder="Username kamu" autocomplete="username" required/>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Password</label>
+    <div class="pw-wrap">
+      <input type="password" name="password" id="pw" class="form-input" placeholder="Password" autocomplete="current-password" required/>
+      <span class="pw-eye" onclick="t()">👁</span>
+    </div>
+  </div>
+  <div style="text-align:right;margin-bottom:16px">
+    <a href="/forgot-password" style="font-size:13px;color:var(--accent);font-weight:600">Lupa password?</a>
+  </div>
+  <button type="submit" class="btn-auth" id="B">Masuk</button>
+</form>
+<div class="auth-footer">Belum punya akun? <a href="/register">Daftar sekarang</a></div>
+<script>
+function t(){const f=document.getElementById('pw');f.type=f.type==='password'?'text':'password'}
+document.getElementById('F').onsubmit=function(){const b=document.getElementById('B');b.disabled=true;b.innerHTML='<span class="spin"></span> Memproses...'};
+</script>
+{% endblock %}

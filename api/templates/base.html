@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>{% block title %}KY-SHIRO API{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080810;--bg2:#0d0d18;--bg3:#111122;
+  --card:#13132a;--card2:#1a1a35;--card3:#21213f;
+  --border:#1e1e3a;--border2:#28284a;--border3:#333360;
+  --ink:#e8e8ff;--ink2:#9090b8;--ink3:#4a4a7a;
+  --accent:#7c6fff;--accent2:#5a4fd4;--accent3:#3d35a0;
+  --green:#00e887;--red:#ff4d6d;--yellow:#ffc947;--blue:#4db8ff;
+  --orange:#ff8c42;
+  --sans:'Plus Jakarta Sans',sans-serif;
+  --mono:'JetBrains Mono',monospace;
+  --r:10px;
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.6;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+button{cursor:pointer;border:none;font-family:var(--sans)}
+input,select,textarea{font-family:var(--sans);outline:none}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border3);border-radius:2px}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:8px;font-size:14px;font-weight:600;transition:all .2s;cursor:pointer;border:none;font-family:var(--sans)}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent2);transform:translateY(-1px);box-shadow:0 4px 16px rgba(124,111,255,.3)}
+.btn-outline{background:transparent;color:var(--ink2);border:1px solid var(--border2)}
+.btn-outline:hover{border-color:var(--accent);color:var(--accent)}
+.btn-danger{background:var(--red);color:#fff}
+.btn-danger:hover{filter:brightness(1.1)}
+.btn-success{background:var(--green);color:#000}
+.btn-sm{padding:6px 13px;font-size:13px}
+.btn-xs{padding:4px 10px;font-size:12px}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none!important}
+
+/* Badges */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;font-family:var(--mono);letter-spacing:.3px}
+.badge-green{background:rgba(0,232,135,.12);color:var(--green);border:1px solid rgba(0,232,135,.2)}
+.badge-red{background:rgba(255,77,109,.12);color:var(--red);border:1px solid rgba(255,77,109,.2)}
+.badge-blue{background:rgba(77,184,255,.12);color:var(--blue);border:1px solid rgba(77,184,255,.2)}
+.badge-yellow{background:rgba(255,201,71,.12);color:var(--yellow);border:1px solid rgba(255,201,71,.2)}
+.badge-purple{background:rgba(124,111,255,.12);color:var(--accent);border:1px solid rgba(124,111,255,.2)}
+.badge-gray{background:var(--card2);color:var(--ink2);border:1px solid var(--border2)}
+.badge-orange{background:rgba(255,140,66,.12);color:var(--orange);border:1px solid rgba(255,140,66,.2)}
+
+/* Forms */
+.form-group{margin-bottom:16px}
+.form-label{font-size:13px;font-weight:600;color:var(--ink2);display:block;margin-bottom:7px;letter-spacing:.2px}
+.form-input{width:100%;background:var(--bg2);border:1.5px solid var(--border2);border-radius:9px;padding:11px 14px;color:var(--ink);font-size:14px;transition:border-color .2s,box-shadow .2s}
+.form-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,111,255,.12)}
+.form-input::placeholder{color:var(--ink3)}
+.form-input:disabled{opacity:.5}
+.form-hint{font-size:12px;color:var(--ink3);margin-top:5px;line-height:1.5}
+.form-err{font-size:12px;color:var(--red);margin-top:5px}
+select.form-input{cursor:pointer}
+
+/* Cards */
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.card-title{font-size:12px;font-weight:700;color:var(--ink2);text-transform:uppercase;letter-spacing:.8px;display:flex;align-items:center;gap:8px}
+
+/* Toast */
+#toasts{position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{padding:12px 16px;border-radius:10px;font-size:13.5px;font-weight:500;backdrop-filter:blur(20px);animation:toastin .25s ease;display:flex;align-items:center;gap:10px;pointer-events:all;max-width:300px;border:1px solid}
+.toast-ok{background:rgba(0,232,135,.1);border-color:rgba(0,232,135,.25);color:var(--green)}
+.toast-err{background:rgba(255,77,109,.1);border-color:rgba(255,77,109,.25);color:var(--red)}
+.toast-info{background:rgba(124,111,255,.1);border-color:rgba(124,111,255,.25);color:var(--accent)}
+@keyframes toastin{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:none}}
+
+/* Spinner */
+.spin{display:inline-block;width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:rotating .6s linear infinite}
+.spin-green{border-top-color:var(--green)}
+@keyframes rotating{to{transform:rotate(360deg)}}
+
+/* Status dot */
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0}
+.dot-green{background:var(--green);box-shadow:0 0 6px rgba(0,232,135,.6)}
+.dot-red{background:var(--red)}
+.dot-yellow{background:var(--yellow)}
+.dot-pulse{animation:dotpulse 2s infinite}
+@keyframes dotpulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* Table */
+.tbl-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse}
+thead th{background:var(--card2);padding:11px 14px;font-size:11px;font-weight:700;color:var(--ink2);text-transform:uppercase;letter-spacing:.5px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+tbody td{padding:11px 14px;font-size:13.5px;color:var(--ink);border-bottom:1px solid var(--border);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:rgba(255,255,255,.015)}
+
+/* Alert boxes */
+.alert{border-radius:10px;padding:12px 16px;font-size:13.5px;display:flex;align-items:flex-start;gap:10px;margin-bottom:14px;border:1px solid}
+.alert-err{background:rgba(255,77,109,.08);border-color:rgba(255,77,109,.2);color:var(--red)}
+.alert-ok{background:rgba(0,232,135,.08);border-color:rgba(0,232,135,.2);color:var(--green)}
+.alert-info{background:rgba(124,111,255,.08);border-color:rgba(124,111,255,.2);color:var(--accent)}
+.alert-warn{background:rgba(255,201,71,.08);border-color:rgba(255,201,71,.2);color:var(--yellow)}
+</style>
+{% block head %}{% endblock %}
+</head>
+<body>
+<div id="toasts"></div>
+{% block body %}{% endblock %}
+<script>
+function toast(msg,type='info',dur=3500){
+  const t=document.getElementById('toasts');
+  const el=document.createElement('div');
+  const ic={ok:'✓',err:'✗',info:'ℹ'};
+  el.className=`toast toast-${type}`;
+  el.innerHTML=`<span>${ic[type]||'•'}</span><span>${msg}</span>`;
+  t.appendChild(el);
+  setTimeout(()=>{el.style.opacity='0';el.style.transition='.25s';setTimeout(()=>el.remove(),250)},dur);
+}
+async function apiFetch(url,opts={}){
+  const r=await fetch(url,{headers:{'Content-Type':'application/json'},...opts});
+  return r.json();
+}
+async function apiPost(url,data={}){
+  const fd=new FormData();
+  Object.entries(data).forEach(([k,v])=>fd.append(k,v));
+  const r=await fetch(url,{method:'POST',body:fd});
+  return r.json();
+}
+async function apiJson(url,data={}){
+  const r=await fetch(url,{method:'POST',body:JSON.stringify(data),headers:{'Content-Type':'application/json'}});
+  return r.json();
+}
+function timeAgo(iso){
+  if(!iso)return'-';
+  const d=new Date(iso),now=new Date();
+  const s=Math.floor((now-d)/1000);
+  if(s<60)return s+'d lalu';
+  if(s<3600)return Math.floor(s/60)+'m lalu';
+  if(s<86400)return Math.floor(s/3600)+'j lalu';
+  return d.toLocaleDateString('id-ID');
+}
+function escHtml(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

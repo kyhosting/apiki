@@ -1,0 +1,137 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}Login iVAS{% endblock %}
+{% block content %}
+<div class="page-hdr">
+  <div class="page-title">🔐 Login ke iVAS</div>
+  <div class="page-sub">Masukkan kredensial akun iVAS kamu sendiri untuk mulai terima SMS real-time</div>
+</div>
+
+{% if success %}
+<div class="alert alert-ok" style="margin-bottom:16px">
+  ✅ Login iVAS berhasil! WebSocket sedang terhubung...
+</div>
+{% endif %}
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:900px">
+  <!-- Login form -->
+  <div class="card">
+    <div class="card-header"><div class="card-title">🔐 Kredensial iVAS</div></div>
+    {% if error %}<div class="alert alert-err">✗ {{ error }}</div>{% endif %}
+
+    <div id="statusArea" style="margin-bottom:16px"></div>
+
+    <div class="form-group">
+      <label class="form-label">Email iVAS</label>
+      <input type="email" id="ivasEmail" class="form-input" placeholder="email@kamu.com"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password iVAS</label>
+      <div class="pw-wrap" style="position:relative">
+        <input type="password" id="ivasPass" class="form-input" placeholder="Password iVAS kamu" style="padding-right:40px"/>
+        <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--ink3);cursor:pointer" onclick="tgl()">👁</span>
+      </div>
+      <div class="form-hint">⚠ Kredensial kamu disimpan terenkripsi dan hanya dipakai untuk login ke iVAS. Tidak dibagikan ke siapapun.</div>
+    </div>
+    <button class="btn btn-primary" onclick="doLogin()" id="loginBtn" style="width:100%">🔐 Login ke iVAS</button>
+
+    <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+      <button class="btn btn-outline btn-sm" onclick="doLogout()">Logout dari iVAS</button>
+      <button class="btn btn-outline btn-sm" onclick="doReconnect()" style="margin-left:8px">🔄 Reconnect WS</button>
+    </div>
+  </div>
+
+  <!-- Status + info -->
+  <div style="display:flex;flex-direction:column;gap:14px">
+    <!-- Live status -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">📡 Status Real-time</div></div>
+      <div id="liveStatus" style="font-size:13px;color:var(--ink2)">Memuat...</div>
+    </div>
+
+    <!-- Info -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">ℹ Cara Kerja</div></div>
+      <div style="font-size:13px;color:var(--ink2);line-height:1.7">
+        <p style="margin-bottom:8px">1. Masukkan email &amp; password akun iVAS kamu</p>
+        <p style="margin-bottom:8px">2. Sistem login ke iVAS pakai session browser</p>
+        <p style="margin-bottom:8px">3. WebSocket terhubung ke <code style="font-family:var(--mono);font-size:11px;background:var(--bg);padding:1px 5px;border-radius:4px">ivasms.com:2087</code></p>
+        <p style="margin-bottom:8px">4. SMS yang masuk langsung dipush ke dashboard</p>
+        <p>5. Session auto-reconnect kalau terputus</p>
+      </div>
+    </div>
+
+    <!-- WS Stats -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">⚡ Cache SMS Live</div></div>
+      <div style="display:flex;align-items:baseline;gap:8px">
+        <div style="font-size:36px;font-weight:800;font-family:var(--mono);color:var(--green)" id="cacheCount">0</div>
+        <div style="font-size:13px;color:var(--ink2)">SMS tersimpan</div>
+      </div>
+      <div style="margin-top:10px">
+        <a href="/dashboard/sms-live" class="btn btn-primary btn-sm">Lihat SMS Live →</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function tgl(){const f=document.getElementById('ivasPass');f.type=f.type==='password'?'text':'password'}
+
+async function doLogin(){
+  const em=document.getElementById('ivasEmail').value.trim();
+  const pw=document.getElementById('ivasPass').value.trim();
+  if(!em||!pw){toast('Email dan password wajib diisi','err');return}
+  const btn=document.getElementById('loginBtn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Login ke iVAS...';
+  const d=await apiPost('/api/ivas/login',{ivas_email:em,ivas_pass:pw});
+  btn.disabled=false;btn.innerHTML='🔐 Login ke iVAS';
+  if(d.status==='ok'){
+    toast('Login iVAS berhasil! WS sedang terhubung...','ok',5000);
+    setTimeout(updateStatus,2000);
+  } else {
+    toast(d.message||'Login gagal','err');
+  }
+}
+
+async function doLogout(){
+  if(!confirm('Logout dari iVAS? SMS live akan berhenti.'))return;
+  const d=await apiPost('/api/ivas/logout');
+  toast(d.message,d.status==='ok'?'ok':'err');
+  setTimeout(updateStatus,500);
+}
+
+async function doReconnect(){
+  const d=await apiFetch('/api/ws/reconnect',{method:'POST'});
+  toast(d.message,d.status==='ok'?'ok':'info');
+  setTimeout(updateStatus,2000);
+}
+
+async function updateStatus(){
+  try{
+    const d=await apiFetch('/api/ivas/status');
+    const el=document.getElementById('liveStatus');
+    const cc=document.getElementById('cacheCount');
+    cc.textContent=d.ws_cached_sms||0;
+    const rows=[
+      {l:'iVAS Session',v:d.ivas_connected?'<span class="badge badge-green">Connected</span>':'<span class="badge badge-red">Disconnected</span>'},
+      {l:'Email iVAS',v:`<span style="font-family:var(--mono);font-size:12px">${d.ivas_email||'-'}</span>`},
+      {l:'WebSocket',v:d.ws_connected?'<span class="badge badge-green">● Live</span>':'<span class="badge badge-gray">● Offline</span>'},
+      {l:'SMS Cached',v:`<span style="font-family:var(--mono)">${d.ws_cached_sms||0}</span>`},
+      {l:'Login At',v:`<span style="font-size:12px;color:var(--ink2)">${d.ivas_login_at?new Date(d.ivas_login_at).toLocaleString('id-ID'):'-'}</span>`},
+    ];
+    el.innerHTML=rows.map(r=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
+        <span style="color:var(--ink2)">${r.l}</span>
+        <span>${r.v}</span>
+      </div>`).join('');
+  }catch(e){document.getElementById('liveStatus').textContent='Gagal memuat status'}
+}
+
+// Enter key
+document.getElementById('ivasPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
+
+// Load status on init
+updateStatus();
+setInterval(updateStatus,8000);
+</script>
+{% endblock %}

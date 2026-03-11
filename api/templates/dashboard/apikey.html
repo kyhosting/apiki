@@ -1,0 +1,39 @@
+{% extends "dashboard/base.html" %}{% block page_title %}API Key{% endblock %}{% block content %}
+<div class="page-hdr"><div class="page-title">⚿ API Key</div><div class="page-sub">Kunci integrasi bot, script, atau website ke KY-SHIRO API</div></div>
+<div class="card" style="max-width:700px;margin-bottom:16px">
+  <div class="card-header"><div class="card-title">⚿ API Key Kamu</div></div>
+  <div style="display:flex;gap:10px;margin-bottom:12px">
+    <input id="keyVal" type="text" value="{{ user.api_key }}" readonly class="form-input" style="font-family:var(--mono);font-size:13px;flex:1"/>
+    <button class="btn btn-outline" onclick="copyKey()">Copy</button>
+    <button class="btn btn-danger btn-sm" onclick="regenKey()">Generate Baru</button>
+  </div>
+  <div class="alert alert-warn">⚠ Jangan share API Key ke orang lain. Kalau bocor, generate ulang segera.</div>
+</div>
+<div class="card" style="max-width:700px">
+  <div class="card-header"><div class="card-title">📖 Contoh Penggunaan</div></div>
+  <div style="font-size:13px;font-weight:600;color:var(--ink2);margin-bottom:8px">Python — SMS Live</div>
+  <div class="codeblock"><span class="k">import</span> requests
+r = requests.get(<span class="s">"https://yourdomain.com/api/sms/live"</span>,
+    headers={<span class="s">"X-API-Key"</span>: <span class="s">"{{ user.api_key }}"</span>},
+    params={<span class="s">"limit"</span>: 50})
+<span class="k">print</span>(r.json()[<span class="s">"sms"</span>])</div>
+  <div style="font-size:13px;font-weight:600;color:var(--ink2);margin:14px 0 8px">SSE Stream (real-time push)</div>
+  <div class="codeblock"><span class="k">import</span> requests, sseclient, json
+r = requests.get(<span class="s">"https://yourdomain.com/api/sms/live/stream"</span>,
+    headers={<span class="s">"X-API-Key"</span>: <span class="s">"{{ user.api_key }}"</span>}, stream=<span class="k">True</span>)
+<span class="k">for</span> ev <span class="k">in</span> sseclient.SSEClient(r):
+    <span class="k">if</span> ev.data: sms = json.loads(ev.data)
+    <span class="k">print</span>(sms[<span class="s">"originator"</span>], sms[<span class="s">"message"</span>])</div>
+  <div style="font-size:13px;font-weight:600;color:var(--ink2);margin:14px 0 8px">cURL</div>
+  <div class="codeblock">curl -H <span class="s">"X-API-Key: {{ user.api_key }}"</span> \
+  <span class="s">"https://yourdomain.com/api/sms/live?limit=20"</span></div>
+</div>
+<script>
+function copyKey(){navigator.clipboard.writeText(document.getElementById('keyVal').value).then(()=>toast('API Key disalin!','ok'))}
+async function regenKey(){
+  if(!confirm('Generate ulang API Key? Key lama tidak bisa dipakai lagi.'))return;
+  const d=await apiFetch('/api/regen-key',{method:'POST'});
+  if(d.status==='ok'){document.getElementById('keyVal').value=d.api_key;toast('API Key baru dibuat','ok')}
+  else toast(d.message||'Gagal','err');
+}
+</script>{% endblock %}

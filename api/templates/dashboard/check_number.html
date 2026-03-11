@@ -1,0 +1,39 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}Cek Nomor{% endblock %}
+{% block content %}
+<div class="page-hdr"><div class="page-title">◎ Cek Nomor</div><div class="page-sub">Cek apakah nomor terdaftar di iVAS dan info lengkapnya</div></div>
+<div class="card" style="max-width:500px">
+  <div class="form-group">
+    <label class="form-label">Nomor yang ingin dicek</label>
+    <input type="text" id="checkNum" class="form-input" placeholder="Contoh: 628123456789" style="font-family:var(--mono);font-size:16px" autofocus/>
+    <div class="form-hint">Masukkan nomor lengkap tanpa tanda +</div>
+  </div>
+  <button class="btn btn-primary" onclick="doCheck()" style="width:100%">◎ Cek Nomor</button>
+  <div id="checkResult" style="margin-top:16px"></div>
+</div>
+<script>
+document.getElementById('checkNum').addEventListener('keydown',e=>{if(e.key==='Enter')doCheck()});
+async function doCheck(){
+  const num=document.getElementById('checkNum').value.trim();
+  const res=document.getElementById('checkResult');
+  if(!num){res.innerHTML='<div class="alert alert-err">✗ Nomor tidak boleh kosong</div>';return}
+  res.innerHTML='<span class="spin"></span> Mencari...';
+  const d=await apiFetch(`/api/check-number?number=${encodeURIComponent(num)}`);
+  if(d.found){
+    res.innerHTML=`<div class="alert alert-ok">
+      <div style="width:100%">
+        <div style="font-weight:700;margin-bottom:10px">✓ Nomor ditemukan</div>
+        <div style="display:grid;gap:8px;font-size:13px">
+          <div style="display:flex;justify-content:space-between"><span style="color:var(--ink2)">Nomor</span><span style="font-family:var(--mono);font-weight:700">${escHtml(d.number)}</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:var(--ink2)">Range</span><span class="badge badge-blue">${escHtml(d.range||'-')}</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:var(--ink2)">A2P</span><span>${escHtml(d.a2p||'-')}</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:var(--ink2)">Term ID</span><span style="font-family:var(--mono);font-size:11px">${escHtml(d.term_id||'-')}</span></div>
+        </div>
+      </div>
+    </div>`;
+  } else {
+    res.innerHTML=`<div class="alert alert-err"><div><div style="font-weight:700">✗ Tidak ditemukan</div><div style="margin-top:5px">Nomor <strong style="font-family:var(--mono)">${escHtml(num)}</strong> tidak terdaftar.</div></div></div>`;
+  }
+}
+</script>
+{% endblock %}

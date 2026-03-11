@@ -1,0 +1,154 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}My Numbers{% endblock %}
+{% block content %}
+<div class="page-hdr"><div class="page-title">☎ My Numbers</div><div class="page-sub">Kelola nomor di akun iVAS — lihat, tambah, dan hapus nomor</div></div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+  <!-- Add number -->
+  <div class="card">
+    <div class="card-header"><div class="card-title">➕ Tambah Nomor</div></div>
+    <div class="form-group">
+      <label class="form-label">Mode tambah</label>
+      <select id="addMode" class="form-input" onchange="toggleAddMode()">
+        <option value="range">Per Range (tambah semua)</option>
+        <option value="number">Per Nomor Spesifik</option>
+        <option value="tid">Per Termination ID</option>
+      </select>
+    </div>
+    <div id="addRangeGrp" class="form-group">
+      <label class="form-label">Nama Range</label>
+      <input type="text" id="addRange" class="form-input" placeholder="Contoh: INDONESIA"/>
+      <div class="form-hint">Semua nomor dalam range ini akan ditambahkan</div>
+    </div>
+    <div id="addNumGrp" class="form-group" style="display:none">
+      <label class="form-label">Nomor Telepon</label>
+      <input type="text" id="addNum" class="form-input" placeholder="Contoh: 628123456789" style="font-family:var(--mono)"/>
+    </div>
+    <div id="addTidGrp" class="form-group" style="display:none">
+      <label class="form-label">Termination ID</label>
+      <input type="text" id="addTid" class="form-input" placeholder="Contoh: 82774" style="font-family:var(--mono)"/>
+    </div>
+    <button class="btn btn-primary" onclick="doAdd()" style="width:100%">➕ Tambah Nomor</button>
+    <div id="addResult" style="margin-top:10px;font-size:13px"></div>
+  </div>
+
+  <!-- Delete number -->
+  <div class="card">
+    <div class="card-header"><div class="card-title">🗑 Hapus / Return Nomor</div></div>
+    <div class="form-group">
+      <label class="form-label">Nomor atau Termination ID</label>
+      <input type="text" id="delInput" class="form-input" placeholder="Nomor atau termination ID" style="font-family:var(--mono)"/>
+      <div class="form-hint">Masukkan nomor telepon atau termination ID yang mau dihapus</div>
+    </div>
+    <button class="btn btn-danger" onclick="doDelete()" style="width:100%">🗑 Hapus Nomor</button>
+    <div id="delResult" style="margin-top:10px;font-size:13px"></div>
+  </div>
+</div>
+
+<!-- My Numbers list -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">☎ Daftar Nomor</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <select id="pageMode" class="form-input" style="width:120px;padding:6px 10px;font-size:13px" onchange="loadNumbers()">
+        <option value="test">Test Numbers</option>
+        <option value="my">My Numbers</option>
+      </select>
+      <input type="text" id="numSearch" class="form-input" placeholder="Search..." style="width:180px;padding:6px 12px;font-size:13px" oninput="filterNums()"/>
+      <button class="btn btn-outline btn-sm" onclick="loadNumbers()">↺ Refresh</button>
+      <span id="numCount" style="font-size:12px;color:var(--ink2);font-family:var(--mono)"></span>
+    </div>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Nomor</th><th>Range</th><th>A2P</th><th>Limit</th><th>Term ID</th><th>Aksi</th></tr></thead>
+      <tbody id="numBody"><tr><td colspan="6" style="text-align:center;padding:28px;color:var(--ink2)">Klik Refresh untuk memuat</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+let allNums=[];
+
+function toggleAddMode(){
+  const m=document.getElementById('addMode').value;
+  document.getElementById('addRangeGrp').style.display=m==='range'?'block':'none';
+  document.getElementById('addNumGrp').style.display=m==='number'?'block':'none';
+  document.getElementById('addTidGrp').style.display=m==='tid'?'block':'none';
+}
+
+async function doAdd(){
+  const m=document.getElementById('addMode').value;
+  const res=document.getElementById('addResult');
+  const payload={};
+  if(m==='range') payload.range_name=document.getElementById('addRange').value.trim();
+  if(m==='number') payload.number=document.getElementById('addNum').value.trim();
+  if(m==='tid') payload.termination_id=document.getElementById('addTid').value.trim();
+  if(!Object.values(payload).filter(Boolean).length){toast('Input wajib diisi','err');return}
+  res.innerHTML='<span class="spin"></span> Menambahkan...';
+  const d=await apiJson('/api/numbers/add',payload);
+  if(d.status==='ok'||d.success){
+    const msg=d.added!=null?`✅ ${d.added} nomor berhasil ditambahkan`:`✅ ${d.message||'Berhasil'}`;
+    res.innerHTML=`<div class="alert alert-ok">${msg}</div>`;
+    toast(msg,'ok');
+    loadNumbers();
+  } else {
+    res.innerHTML=`<div class="alert alert-err">✗ ${escHtml(d.message||'Gagal menambahkan')}</div>`;
+  }
+}
+
+async function doDelete(){
+  const val=document.getElementById('delInput').value.trim();
+  const res=document.getElementById('delResult');
+  if(!val){toast('Input wajib diisi','err');return}
+  if(!confirm(`Hapus nomor/ID "${val}"?`))return;
+  res.innerHTML='<span class="spin"></span> Menghapus...';
+  const payload=/^\d+$/.test(val)&&val.length<8?{termination_id:val}:{number:val};
+  const d=await apiJson('/api/numbers/delete',payload);
+  if(d.status==='ok'||d.success){
+    const msg=`✅ ${d.message||'Berhasil dihapus'}`;
+    res.innerHTML=`<div class="alert alert-ok">${msg}</div>`;
+    toast(msg,'ok');
+    loadNumbers();
+  } else {
+    res.innerHTML=`<div class="alert alert-err">✗ ${escHtml(d.message||'Gagal menghapus')}</div>`;
+  }
+}
+
+async function loadNumbers(){
+  const page=document.getElementById('pageMode').value;
+  const body=document.getElementById('numBody');
+  body.innerHTML=`<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--ink2)"><span class="spin"></span> Memuat...</td></tr>`;
+  const d=await apiFetch(`/api/numbers/my?page=${page}&limit=500`);
+  allNums=d.numbers||[];
+  document.getElementById('numCount').textContent=`${allNums.length} nomor`;
+  renderNums(allNums);
+}
+
+function filterNums(){
+  const q=document.getElementById('numSearch').value.toLowerCase();
+  renderNums(allNums.filter(n=>(n.number||'').includes(q)||(n.range||'').toLowerCase().includes(q)));
+}
+
+function renderNums(list){
+  const body=document.getElementById('numBody');
+  if(!list.length){body.innerHTML=`<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--ink2)">Tidak ada nomor</td></tr>`;return}
+  body.innerHTML=list.map(n=>`<tr>
+    <td style="font-family:var(--mono);font-weight:700">${escHtml(n.number||'-')}</td>
+    <td>${escHtml(n.range||'-')}</td>
+    <td style="font-size:12px">${escHtml(n.a2p||'-')}</td>
+    <td style="font-size:12px;color:var(--ink2)">${escHtml(n.limit||'-')}</td>
+    <td style="font-family:var(--mono);font-size:11px;color:var(--ink3)">${escHtml(n.term_id||'-')}</td>
+    <td><button class="btn btn-danger btn-xs" onclick="quickDel('${n.term_id||n.number}','${n.number}')">Hapus</button></td>
+  </tr>`).join('');
+}
+
+async function quickDel(tid,num){
+  if(!confirm(`Hapus nomor ${num}?`))return;
+  const payload=tid&&/^\d+$/.test(tid)?{termination_id:tid}:{number:num};
+  const d=await apiJson('/api/numbers/delete',payload);
+  if(d.success||d.status==='ok'){toast(`✅ ${num} dihapus`,'ok');loadNumbers();}
+  else toast(d.message||'Gagal','err');
+}
+</script>
+{% endblock %}

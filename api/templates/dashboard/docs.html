@@ -1,0 +1,93 @@
+{% extends "dashboard/base.html" %}{% block page_title %}Dokumentasi{% endblock %}{% block content %}
+<div class="page-hdr"><div class="page-title">📖 Dokumentasi API</div><div class="page-sub">Referensi lengkap semua endpoint KY-SHIRO API</div></div>
+
+{% macro ep(method,path,desc,params='',resp='') %}
+<div style="margin-bottom:16px">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+    <span class="badge {% if method=='GET' %}badge-green{% else %}badge-yellow{% endif %}" style="font-size:12px;padding:4px 10px">{{ method }}</span>
+    <code style="font-family:var(--mono);font-size:14px;color:var(--ink);background:var(--bg);padding:4px 10px;border-radius:6px;border:1px solid var(--border)">{{ path }}</code>
+  </div>
+  <div style="font-size:13.5px;color:var(--ink2);margin-bottom:{% if params %}8px{% else %}0{% endif %}">{{ desc }}</div>
+  {% if params %}<div class="codeblock" style="font-size:12px">{{ params }}</div>{% endif %}
+  {% if resp %}<div style="font-size:12px;color:var(--ink3);margin-top:6px;font-family:var(--mono)">{{ resp }}</div>{% endif %}
+</div>
+{% endmacro %}
+
+<div style="display:grid;grid-template-columns:200px 1fr;gap:20px;align-items:start">
+  <div class="card" style="position:sticky;top:66px">
+    <div style="font-size:11px;font-weight:700;color:var(--ink3);margin-bottom:8px;text-transform:uppercase">Navigasi</div>
+    <a href="#auth-ivas" class="sb-item" style="font-size:12px">Login iVAS</a>
+    <a href="#sms-live" class="sb-item" style="font-size:12px">SMS Live</a>
+    <a href="#sms-received" class="sb-item" style="font-size:12px">SMS Received</a>
+    <a href="#ranges" class="sb-item" style="font-size:12px">Ranges</a>
+    <a href="#numbers" class="sb-item" style="font-size:12px">Numbers</a>
+    <a href="#user" class="sb-item" style="font-size:12px">User API</a>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:14px">
+
+    <div class="card">
+      <div class="card-header"><div class="card-title" id="auth-ivas">🔐 Autentikasi</div></div>
+      <div class="alert alert-info" style="margin-bottom:14px">Semua endpoint API butuh <code style="font-family:var(--mono)">X-API-Key</code> di header atau <code style="font-family:var(--mono)">?api_key=</code> di URL.</div>
+      <div class="codeblock"><span class="v">X-API-Key</span>: ky-xxxxxxxxxxxxxxxxxxxxxxxx
+<span class="c"># atau</span>
+GET /api/sms/live?<span class="v">api_key</span>=ky-xxxxxxxxxxxxxxxxxxxxxxxx</div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="card-title" id="sms-live">⚡ SMS Live</div></div>
+      {{ ep('GET','/api/sms/live','Ambil SMS live dari cache WebSocket. Tidak perlu login iVAS di header, cukup API Key.',
+        'limit=50        max SMS yang dikembalikan (maks 500)\nsid=            filter berdasarkan SID/platform (opsional)\nsince=          filter SMS setelah timestamp ISO ini',
+        '→ {status, source, total, sms:[{originator,recipient,message,sid,range,paid,source,received_at}]}') }}
+      {{ ep('GET','/api/sms/live/stream','SSE push stream — SMS dipush otomatis tiap ada yang masuk. Tidak perlu polling.',
+        'sid=            filter SID (opsional)',
+        '→ text/event-stream, setiap event: data: {JSON SMS}') }}
+      {{ ep('POST','/api/sms/live/clear','Kosongkan cache SMS live untuk user ini.','','→ {status, message}') }}
+      {{ ep('POST','/api/ws/reconnect','Reconnect ulang WebSocket ke iVAS.','','→ {status, message}') }}
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="card-title" id="sms-received">✉ SMS Received</div></div>
+      {{ ep('GET','/api/sms/received','Ambil histori SMS yang sudah masuk ke nomor tertentu.',
+        'range=          nama range — WAJIB\nnumber=         nomor telepon — WAJIB\nfrom=           tanggal awal YYYY-MM-DD (default: hari ini)\nto=             tanggal akhir YYYY-MM-DD (default: hari ini)',
+        '→ {status, number, range, total, messages:[string,...]}') }}
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="card-title" id="ranges">◈ Ranges</div></div>
+      {{ ep('GET','/api/ranges','Daftar range aktif berdasarkan tanggal.',
+        'from=           YYYY-MM-DD (default: hari ini)\nto=             YYYY-MM-DD (default: hari ini)',
+        '→ {status, total, ranges:[{name, id}]}') }}
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="card-title" id="numbers">☎ Numbers</div></div>
+      {{ ep('GET','/api/numbers','Daftar nomor dalam range tertentu.',
+        'range=          nama range — WAJIB\nfrom=           YYYY-MM-DD\nto=             YYYY-MM-DD',
+        '→ {status, range, total, numbers:[{number, num_id}]}') }}
+      {{ ep('GET','/api/numbers/my','Daftar nomor di akun iVAS (Test/My Numbers).',
+        'page=           test | my (default: test)\nlimit=          max rows (default 200)\nsearch=         filter search',
+        '→ {status, total, numbers:[{number,range,a2p,limit,term_id}]}') }}
+      {{ ep('GET','/api/check-number','Cek apakah nomor terdaftar.',
+        'number=         nomor telepon — WAJIB',
+        '→ {status, found:bool, number, range, a2p, term_id}') }}
+      {{ ep('POST','/api/numbers/add','Tambah nomor ke My Numbers.',
+        'range_name=     tambah semua nomor di range\n  atau\nnumber=         tambah nomor spesifik\n  atau\ntermination_id= tambah by termination ID',
+        '→ {status, added, failed, results, errors}') }}
+      {{ ep('POST','/api/numbers/delete','Hapus/return nomor dari My Numbers.',
+        'number=         nomor telepon\n  atau\ntermination_id= termination ID langsung',
+        '→ {status, success, message}') }}
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="card-title" id="user">◉ User API</div></div>
+      {{ ep('POST','/api/ivas/login','Login ke iVAS dengan akun sendiri (butuh session, bukan API Key).',
+        'ivas_email=     email akun iVAS\nivas_pass=      password akun iVAS','') }}
+      {{ ep('GET','/api/ivas/status','Status koneksi iVAS dan WebSocket.','','→ {ivas_connected, ivas_email, ws_connected, ws_cached_sms}') }}
+      {{ ep('GET','/api/me','Info akun yang sedang login.','','→ {status, user:{...}}') }}
+      {{ ep('POST','/api/regen-key','Generate ulang API Key.','','→ {status, api_key}') }}
+    </div>
+
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,113 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}SMS Received{% endblock %}
+{% block content %}
+<div class="page-hdr"><div class="page-title">✉ SMS Received</div><div class="page-sub">Histori SMS — cari per range, nomor, dan tanggal</div></div>
+
+<!-- Tanggal + Cari Range -->
+<div class="card" style="margin-bottom:14px">
+  <div class="card-header"><div class="card-title">① Tanggal &amp; Range</div></div>
+  <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end">
+    <div><div class="form-label" style="margin-bottom:4px">Dari</div><input type="date" id="fd" class="form-input" style="width:160px"/></div>
+    <div><div class="form-label" style="margin-bottom:4px">Sampai</div><input type="date" id="td" class="form-input" style="width:160px"/></div>
+    <button class="btn btn-primary" onclick="loadRanges()">◈ Cari Range</button>
+    <span id="rngStatus" style="font-size:12px;color:var(--ink2);align-self:center;font-family:var(--mono)"></span>
+  </div>
+  <div id="rngArea" style="margin-top:14px"></div>
+</div>
+
+<!-- Pilih Nomor -->
+<div class="card" id="numCard" style="margin-bottom:14px;display:none">
+  <div class="card-header"><div class="card-title">② Pilih Nomor</div><input type="text" id="numSearch" class="form-input" placeholder="Search nomor..." style="width:200px" oninput="filterNums()" /></div>
+  <div id="numArea"></div>
+</div>
+
+<!-- SMS -->
+<div class="card" id="smsCard" style="display:none">
+  <div class="card-header">
+    <div class="card-title" id="smsCardTitle">③ SMS</div>
+    <button class="btn btn-outline btn-xs" onclick="exportSmsCSV()">↓ CSV</button>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Waktu</th><th>Pesan</th></tr></thead>
+      <tbody id="smsBody"><tr><td colspan="2" style="text-align:center;padding:24px;color:var(--ink2)">Pilih nomor dahulu</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const today=new Date().toISOString().slice(0,10);
+document.getElementById('fd').value=today;document.getElementById('td').value=today;
+let selRange='',allNums=[],curSms=[],curNum='';
+
+async function loadRanges(){
+  const fd=document.getElementById('fd').value,td=document.getElementById('td').value;
+  const st=document.getElementById('rngStatus'),el=document.getElementById('rngArea');
+  st.innerHTML='<span class="spin"></span>';
+  el.innerHTML='';
+  const d=await apiFetch(`/api/ranges?from=${fd}&to=${td}`);
+  st.textContent=`${d.total||0} range`;
+  if(!d.ranges?.length){el.innerHTML='<span style="color:var(--ink2);font-size:13px">Tidak ada range untuk tanggal ini</span>';return}
+  el.innerHTML=d.ranges.map(r=>`
+    <button onclick="selRange_f('${r.name.replace(/'/g,"\\'")}','${r.id}')"
+      style="margin:3px;padding:6px 14px;border-radius:8px;background:var(--card2);border:1.5px solid var(--border2);color:var(--ink);font-size:13px;cursor:pointer;transition:.15s;font-weight:500"
+      onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)'">
+      ${escHtml(r.name)} <span style="color:var(--accent);font-family:var(--mono);font-size:11px">#${escHtml(r.id)}</span>
+    </button>`).join('');
+}
+
+async function selRange_f(rng,rid){
+  selRange=rng;
+  const fd=document.getElementById('fd').value,td=document.getElementById('td').value;
+  const numCard=document.getElementById('numCard'),numArea=document.getElementById('numArea');
+  numCard.style.display='block';
+  numArea.innerHTML='<span class="spin"></span> Memuat nomor...';
+  document.getElementById('numSearch').value='';
+  const d=await apiFetch(`/api/numbers?range=${encodeURIComponent(rng)}&from=${fd}&to=${td}`);
+  allNums=d.numbers||[];
+  renderNums(allNums);
+}
+
+function renderNums(list){
+  const el=document.getElementById('numArea');
+  if(!list.length){el.innerHTML='<span style="color:var(--ink2)">Tidak ada nomor</span>';return}
+  el.innerHTML=list.map(n=>`
+    <button onclick="loadSms('${n.number}')"
+      style="margin:3px;padding:5px 12px;border-radius:7px;background:var(--bg2);border:1.5px solid var(--border2);color:var(--ink);font-size:12px;cursor:pointer;font-family:var(--mono);transition:.15s"
+      onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)'">
+      ${escHtml(n.number)}
+    </button>`).join('');
+}
+
+function filterNums(){
+  const q=document.getElementById('numSearch').value.toLowerCase();
+  renderNums(allNums.filter(n=>(n.number||'').includes(q)));
+}
+
+async function loadSms(num){
+  curNum=num;
+  const fd=document.getElementById('fd').value,td=document.getElementById('td').value;
+  const card=document.getElementById('smsCard'),body=document.getElementById('smsBody');
+  card.style.display='block';
+  document.getElementById('smsCardTitle').textContent=`③ SMS untuk ${num}`;
+  body.innerHTML=`<tr><td colspan="2" style="text-align:center;padding:20px;color:var(--ink2)"><span class="spin"></span> Memuat...</td></tr>`;
+  card.scrollIntoView({behavior:'smooth',block:'nearest'});
+  const d=await apiFetch(`/api/sms/received?range=${encodeURIComponent(selRange)}&number=${encodeURIComponent(num)}&from=${fd}&to=${td}`);
+  curSms=d.messages||[];
+  if(!curSms.length){
+    body.innerHTML=`<tr><td colspan="2" style="text-align:center;padding:24px;color:var(--ink2)">Tidak ada SMS untuk nomor ini</td></tr>`;
+    return;
+  }
+  body.innerHTML=curSms.map(m=>`<tr>
+    <td style="font-size:11px;font-family:var(--mono);white-space:nowrap;color:var(--ink2);width:120px">-</td>
+    <td style="word-break:break-word">${escHtml(m)}</td>
+  </tr>`).join('');
+}
+
+function exportSmsCSV(){
+  const rows=[['Nomor','Pesan'],...curSms.map(m=>[curNum,`"${m.replace(/"/g,'""')}"`])];
+  const b=new Blob([rows.map(r=>r.join(',')).join('\n')],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`sms-${curNum}.csv`;a.click();
+}
+</script>
+{% endblock %}

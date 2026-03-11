@@ -1,0 +1,107 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}Dashboard{% endblock %}
+{% block content %}
+<div class="page-hdr">
+  <div class="page-title">Selamat datang, {{ user.nama }} 👋</div>
+  <div class="page-sub">Ringkasan status sistem dan akun iVAS kamu</div>
+</div>
+
+<!-- iVAS Status card -->
+<div class="card" style="margin-bottom:16px;border-color:{% if ivas_connected %}rgba(0,232,135,.25){% else %}rgba(255,77,109,.2){% endif %}">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+    <div style="display:flex;align-items:center;gap:14px">
+      <div style="width:48px;height:48px;border-radius:13px;background:{% if ivas_connected %}rgba(0,232,135,.1){% else %}rgba(255,77,109,.1){% endif %};display:flex;align-items:center;justify-content:center;font-size:22px;border:1px solid {% if ivas_connected %}rgba(0,232,135,.2){% else %}rgba(255,77,109,.2){% endif %}">
+        {% if ivas_connected %}✅{% else %}🔐{% endif %}
+      </div>
+      <div>
+        <div style="font-size:15px;font-weight:700;color:{% if ivas_connected %}var(--green){% else %}var(--red){% endif %}">
+          iVAS: {% if ivas_connected %}Terhubung{% else %}Belum Login{% endif %}
+        </div>
+        <div style="font-size:13px;color:var(--ink2);margin-top:2px">
+          {% if ivas_connected %}
+            Session aktif · WebSocket streaming SMS live
+          {% else %}
+            Login ke akun iVAS untuk mulai terima SMS real-time
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% if not ivas_connected %}
+    <a href="/dashboard/ivas-login" class="btn btn-primary">🔐 Login ke iVAS →</a>
+    {% else %}
+    <button class="btn btn-outline btn-sm" onclick="recon()">🔄 Reconnect WS</button>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="stats-grid">
+  <div class="stat">
+    <div class="stat-icon">⚡</div>
+    <div class="stat-val" id="wsCount">{{ ws_total }}</div>
+    <div class="stat-label">SMS Live Cached</div>
+  </div>
+  <div class="stat">
+    <div class="stat-icon">🔐</div>
+    <div class="stat-val" style="font-size:16px;color:{% if ivas_connected %}var(--green){% else %}var(--red){% endif %}">
+      {% if ivas_connected %}ON{% else %}OFF{% endif %}
+    </div>
+    <div class="stat-label">iVAS Session</div>
+  </div>
+  <div class="stat">
+    <div class="stat-icon">⚿</div>
+    <div class="stat-val" style="font-size:11px;font-family:var(--mono);color:var(--accent);word-break:break-all">{{ user.api_key[:16] }}...</div>
+    <div class="stat-label">API Key</div>
+  </div>
+  <div class="stat">
+    <div class="stat-icon">◉</div>
+    <div class="stat-val" style="font-size:16px;color:var(--accent)">{{ user.role }}</div>
+    <div class="stat-label">Role Akun</div>
+  </div>
+</div>
+
+<!-- Quick actions -->
+<div class="card" style="margin-bottom:16px">
+  <div class="card-header"><div class="card-title">⚡ Aksi Cepat</div></div>
+  <div style="display:flex;flex-wrap:wrap;gap:8px">
+    {% if not ivas_connected %}
+    <a href="/dashboard/ivas-login" class="btn btn-primary">🔐 Login iVAS Dulu</a>
+    {% else %}
+    <a href="/dashboard/sms-live" class="btn btn-primary">⚡ SMS Live</a>
+    <a href="/dashboard/sms-received" class="btn btn-outline">✉ SMS Received</a>
+    <a href="/dashboard/numbers" class="btn btn-outline">☎ My Numbers</a>
+    <a href="/dashboard/ranges" class="btn btn-outline">◈ Cari Range</a>
+    <a href="/dashboard/check-number" class="btn btn-outline">◎ Cek Nomor</a>
+    {% endif %}
+    <a href="/dashboard/apikey" class="btn btn-outline">⚿ API Key</a>
+    <a href="/dashboard/docs" class="btn btn-outline">📖 Docs</a>
+  </div>
+</div>
+
+<!-- API Key integration -->
+<div class="card">
+  <div class="card-header"><div class="card-title">⚿ Cara Pakai API Key</div></div>
+  <div class="codeblock"><span class="c"># Header di setiap request</span>
+<span class="v">X-API-Key</span>: <span class="s">{{ user.api_key }}</span>
+
+<span class="c"># Atau via query param</span>
+GET /api/sms/live?<span class="v">api_key</span>=<span class="s">{{ user.api_key }}</span>
+
+<span class="c"># Stream SMS real-time (SSE)</span>
+GET /api/sms/live/stream?<span class="v">api_key</span>=<span class="s">{{ user.api_key }}</span></div>
+</div>
+
+<script>
+async function recon(){
+  const d=await apiFetch('/api/ws/reconnect',{method:'POST'});
+  toast(d.message,d.status==='ok'?'ok':'err');
+}
+// Live update stats
+setInterval(async()=>{
+  try{
+    const d=await apiFetch('/api/ivas/status');
+    document.getElementById('wsCount').textContent=d.ws_cached_sms||0;
+  }catch(e){}
+},5000);
+</script>
+{% endblock %}

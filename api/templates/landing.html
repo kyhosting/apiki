@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+{% block title %}KY-SHIRO API — SMS OTP Platform{% endblock %}
+{% block head %}
+<style>
+nav{position:fixed;top:0;left:0;right:0;z-index:900;height:62px;display:flex;align-items:center;justify-content:space-between;padding:0 32px;background:rgba(8,8,16,.85);backdrop-filter:blur(20px);border-bottom:1px solid var(--border)}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-mark{width:36px;height:36px;border-radius:10px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#fff;font-family:var(--mono)}
+.logo-name{font-size:15px;font-weight:800;letter-spacing:-.3px}.logo-name em{color:var(--accent);font-style:normal}
+.nav-links{display:flex;align-items:center;gap:4px}
+.nl{padding:7px 14px;border-radius:8px;font-size:14px;font-weight:500;color:var(--ink2);transition:all .2s}
+.nl:hover{color:var(--ink);background:var(--card)}
+.nl-cta{background:var(--accent);color:#fff!important;font-weight:700}
+.nl-cta:hover{background:var(--accent2)!important;box-shadow:0 4px 16px rgba(124,111,255,.3)}
+
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+
+/* Hero */
+.hero{min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:100px 24px 60px;position:relative;overflow:hidden}
+.hero-bg{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 700px 450px at 50% 10%,rgba(124,111,255,.15) 0%,transparent 70%),radial-gradient(ellipse 400px 300px at 85% 60%,rgba(0,232,135,.06) 0%,transparent 70%)}
+.hero-grid{position:absolute;inset:0;opacity:.03;background-image:linear-gradient(var(--border2) 1px,transparent 1px),linear-gradient(90deg,var(--border2) 1px,transparent 1px);background-size:48px 48px;pointer-events:none}
+.hero-inner{position:relative;z-index:1;max-width:760px;margin:0 auto}
+.hero-pill{display:inline-flex;align-items:center;gap:8px;background:rgba(124,111,255,.1);border:1px solid rgba(124,111,255,.2);padding:5px 16px 5px 10px;border-radius:20px;font-size:12px;font-weight:600;color:var(--accent);margin-bottom:28px;font-family:var(--mono)}
+.hero-pill-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(0,232,135,.5)}50%{box-shadow:0 0 0 7px rgba(0,232,135,0)}}
+.hero-h1{font-size:clamp(36px,6vw,72px);font-weight:800;line-height:1.08;letter-spacing:-2px;color:var(--ink);margin-bottom:22px}
+.hero-h1 em{font-style:normal;background:linear-gradient(135deg,var(--accent),var(--green) 60%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero-desc{font-size:17px;color:var(--ink2);max-width:520px;margin:0 auto 36px;line-height:1.7;font-weight:400}
+.hero-btns{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap}
+.hero-btn{padding:13px 30px;border-radius:10px;font-size:15px;font-weight:700;transition:all .2s;display:inline-flex;align-items:center;gap:8px}
+.hero-btn-main{background:var(--accent);color:#fff}
+.hero-btn-main:hover{background:var(--accent2);transform:translateY(-2px);box-shadow:0 8px 28px rgba(124,111,255,.35)}
+.hero-btn-ghost{background:var(--card);color:var(--ink2);border:1px solid var(--border2)}
+.hero-btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+.hero-stats{display:flex;justify-content:center;gap:48px;margin-top:64px;flex-wrap:wrap}
+.hstat{text-align:center}
+.hstat-n{font-size:32px;font-weight:800;color:var(--ink);font-family:var(--mono);line-height:1}
+.hstat-n span{color:var(--accent)}
+.hstat-l{font-size:12px;color:var(--ink2);margin-top:4px;font-weight:500}
+
+/* Sections */
+.section{padding:90px 0}
+.section-pill{display:inline-block;background:rgba(124,111,255,.08);border:1px solid rgba(124,111,255,.18);border-radius:20px;padding:4px 14px;font-size:12px;font-weight:700;color:var(--accent);margin-bottom:16px;font-family:var(--mono)}
+.section-h{font-size:clamp(28px,4vw,44px);font-weight:800;color:var(--ink);margin-bottom:12px;letter-spacing:-.8px}
+.section-sub{font-size:16px;color:var(--ink2);max-width:480px;line-height:1.7}
+
+.feat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px;margin-top:52px}
+.feat{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;transition:border-color .2s,transform .2s}
+.feat:hover{border-color:var(--border2);transform:translateY(-4px)}
+.feat-icon{width:46px;height:46px;border-radius:12px;background:rgba(124,111,255,.1);border:1px solid rgba(124,111,255,.15);display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:14px}
+.feat-h{font-size:15px;font-weight:700;color:var(--ink);margin-bottom:7px}
+.feat-d{font-size:13.5px;color:var(--ink2);line-height:1.6}
+
+/* Code */
+.code-section{background:var(--bg2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:90px 0}
+.code-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center;margin-top:52px}
+.code-block{background:var(--bg);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.code-head{padding:12px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink2);font-family:var(--mono)}
+.cd{width:11px;height:11px;border-radius:50%}
+.code-body{padding:20px;font-family:var(--mono);font-size:12.5px;line-height:1.9;overflow-x:auto;white-space:pre}
+.ck{color:#c678dd}.cs{color:#98c379}.cn{color:#e06c75}.cv{color:#e5c07b}.cc{color:var(--ink3)}
+
+/* Endpoints */
+.ep-list{display:flex;flex-direction:column;gap:8px;margin-top:52px}
+.ep{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:14px;transition:border-color .2s}
+.ep:hover{border-color:var(--border2)}
+.ep-m{font-family:var(--mono);font-size:11px;font-weight:800;padding:3px 10px;border-radius:6px;min-width:44px;text-align:center;flex-shrink:0}
+.ep-get{background:rgba(0,232,135,.12);color:var(--green)}
+.ep-post{background:rgba(255,201,71,.12);color:var(--yellow)}
+.ep-path{font-family:var(--mono);font-size:13px;color:var(--ink);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ep-desc{font-size:12.5px;color:var(--ink2);white-space:nowrap}
+
+/* Contact */
+.contact-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:52px}
+.contact-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px;text-align:center;transition:all .2s}
+.contact-card:hover{border-color:var(--accent);transform:translateY(-4px)}
+.contact-icon{font-size:28px;margin-bottom:10px}
+.contact-plat{font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px}
+.contact-val{font-size:13.5px;color:var(--ink);font-weight:600}
+
+footer{padding:36px 0;text-align:center;border-top:1px solid var(--border);color:var(--ink3);font-size:13px}
+footer a{color:var(--ink2);margin:0 12px;transition:color .2s}
+footer a:hover{color:var(--accent)}
+
+@media(max-width:768px){nav{padding:0 16px}.nav-links .nl:not(.nl-cta){display:none}.code-grid{grid-template-columns:1fr}.hero{padding:80px 16px 40px}.hero-stats{gap:28px}}
+</style>
+{% endblock %}
+{% block body %}
+
+<nav>
+  <div class="logo">
+    <div class="logo-mark">KY</div>
+    <div class="logo-name"><em>KY-SHIRO</em> API</div>
+  </div>
+  <div class="nav-links">
+    <a href="#fitur" class="nl">Fitur</a>
+    <a href="#endpoint" class="nl">Endpoint</a>
+    <a href="#kontak" class="nl">Kontak</a>
+    <a href="/login" class="nl">Masuk</a>
+    <a href="/register" class="nl nl-cta">Daftar Gratis</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-grid"></div>
+  <div class="hero-inner">
+    <div class="hero-pill"><span class="hero-pill-dot"></span> Real-time · iVAS SMS Platform</div>
+    <h1 class="hero-h1">Platform API<br><em>SMS & OTP</em><br>Sesungguhnya</h1>
+    <p class="hero-desc">Login ke akun iVAS kamu sendiri, ambil SMS real-time via WebSocket, dan integrasikan ke bot atau website lewat API Key.</p>
+    <div class="hero-btns">
+      <a href="/register" class="hero-btn hero-btn-main">Mulai Sekarang →</a>
+      <a href="#endpoint" class="hero-btn hero-btn-ghost">Lihat Endpoint</a>
+    </div>
+    <div class="hero-stats">
+      <div class="hstat"><div class="hstat-n">WS<span>✓</span></div><div class="hstat-l">WebSocket Real-time</div></div>
+      <div class="hstat"><div class="hstat-n">SSE<span>✓</span></div><div class="hstat-l">Push Stream</div></div>
+      <div class="hstat"><div class="hstat-n">API<span>✓</span></div><div class="hstat-l">Key Integration</div></div>
+      <div class="hstat"><div class="hstat-n">WA<span>✓</span></div><div class="hstat-l">OTP via WhatsApp</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="fitur">
+  <div class="wrap">
+    <div class="section-pill">Fitur</div>
+    <h2 class="section-h">Lengkap, Real, Bukan Demo</h2>
+    <p class="section-sub">Setiap fitur langsung terhubung ke iVAS. Tidak ada simulasi, tidak ada data palsu.</p>
+    <div class="feat-grid">
+      <div class="feat"><div class="feat-icon">⚡</div><div class="feat-h">SMS Live Real-time</div><div class="feat-d">Terima SMS masuk secara instan lewat WebSocket iVAS. Dipush ke dashboard dan bisa di-stream via SSE.</div></div>
+      <div class="feat"><div class="feat-icon">✉</div><div class="feat-h">SMS Received</div><div class="feat-d">Ambil histori SMS yang sudah masuk per range dan nomor. Filter tanggal, range, SID platform.</div></div>
+      <div class="feat"><div class="feat-icon">☎</div><div class="feat-h">Ambil Nomor</div><div class="feat-d">Lihat Test Numbers dan My Numbers di akun iVAS kamu. Filter, search, ambil per range.</div></div>
+      <div class="feat"><div class="feat-icon">◈</div><div class="feat-h">Add / Delete Number</div><div class="feat-d">Tambah nomor dari Test Numbers ke My Numbers, atau kembalikan nomor. Bisa per ID atau per range.</div></div>
+      <div class="feat"><div class="feat-icon">◎</div><div class="feat-h">Cek Nomor</div><div class="feat-d">Verifikasi apakah nomor terdaftar, info range, A2P, dan termination ID-nya.</div></div>
+      <div class="feat"><div class="feat-icon">⚿</div><div class="feat-h">API Key</div><div class="feat-d">Pakai API Key untuk integrasi bot Telegram, Python script, Node.js, atau apapun.</div></div>
+      <div class="feat"><div class="feat-icon">📲</div><div class="feat-h">OTP via WhatsApp</div><div class="feat-d">Verifikasi dan reset password pakai OTP yang dikirim ke WhatsApp via Baileys (self-hosted).</div></div>
+      <div class="feat"><div class="feat-icon">⚙</div><div class="feat-h">Session Per User</div><div class="feat-d">Setiap user login ke iVAS dengan akun sendiri. Session terisolasi, aman, dan bisa reconnect otomatis.</div></div>
+      <div class="feat"><div class="feat-icon">📡</div><div class="feat-h">SSE Stream</div><div class="feat-d">Subscribe ke endpoint /api/sms/live/stream dan terima SMS otomatis dipush tanpa polling.</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="code-section">
+  <div class="wrap">
+    <div class="section-pill">Integrasi</div>
+    <h2 class="section-h">Mudah dipakai di mana saja</h2>
+    <p class="section-sub">Satu header API Key, akses semua endpoint langsung dari iVAS.</p>
+    <div class="code-grid">
+      <div class="code-block">
+        <div class="code-head"><div class="cd" style="background:#ff5f57"></div><div class="cd" style="background:#febc2e"></div><div class="cd" style="background:#28c840"></div><span style="margin-left:6px">Python — Terima SMS live</span></div>
+        <div class="code-body"><span class="ck">import</span> requests, sseclient
+
+API = <span class="cs">"ky-xxxxxxxxxxxx"</span>
+BASE = <span class="cs">"https://yourdomain.com"</span>
+
+<span class="cc"># Stream SMS real-time (SSE)</span>
+r = requests.get(
+    f<span class="cs">"{BASE}/api/sms/live/stream"</span>,
+    headers={<span class="cs">"X-API-Key"</span>: API},
+    stream=<span class="ck">True</span>
+)
+<span class="ck">for</span> ev <span class="ck">in</span> sseclient.SSEClient(r):
+    <span class="ck">if</span> ev.data:
+        sms = json.loads(ev.data)
+        <span class="cn">print</span>(sms[<span class="cs">"originator"</span>],
+              sms[<span class="cs">"message"</span>])</div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><div class="cd" style="background:#ff5f57"></div><div class="cd" style="background:#febc2e"></div><div class="cd" style="background:#28c840"></div><span style="margin-left:6px">JavaScript — Bot Telegram</span></div>
+        <div class="code-body"><span class="ck">const</span> <span class="cv">API</span> = <span class="cs">"ky-xxxxxxxxxxxx"</span>;
+<span class="ck">const</span> <span class="cv">BASE</span> = <span class="cs">"https://yourdomain.com"</span>;
+
+<span class="cc">// Add nomor dari range</span>
+<span class="ck">const</span> r = <span class="ck">await</span> fetch(
+  <span class="cs">`${BASE}/api/numbers/add`</span>,
+  {
+    method: <span class="cs">"POST"</span>,
+    headers: {<span class="cs">"X-API-Key"</span>: <span class="cv">API</span>,
+              <span class="cs">"Content-Type"</span>: <span class="cs">"application/json"</span>},
+    body: JSON.stringify({
+      range_name: <span class="cs">"INDONESIA"</span>
+    })
+  }
+);
+<span class="ck">const</span> data = <span class="ck">await</span> r.json();
+console.log(data.added, <span class="cs">"nomor ditambahkan"</span>);</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="endpoint">
+  <div class="wrap">
+    <div class="section-pill">Endpoint</div>
+    <h2 class="section-h">Semua endpoint tersedia</h2>
+    <p class="section-sub">Proxy langsung ke iVAS. Butuh X-API-Key di header atau ?api_key= di URL.</p>
+    <div class="ep-list">
+      <div class="ep"><span class="ep-m ep-post">POST</span><span class="ep-path">/api/ivas/login</span><span class="ep-desc">Login ke akun iVAS sendiri</span></div>
+      <div class="ep"><span class="ep-m ep-get">GET</span><span class="ep-path">/api/ivas/status</span><span class="ep-desc">Status koneksi iVAS + WebSocket</span></div>
+      <div class="ep"><span class="ep-m ep-get">GET</span><span class="ep-path">/api/sms/live</span><span class="ep-desc">Ambil SMS live dari cache WS</span></div>
+      <div class="ep"><span class="ep-m ep-get">GET</span><span class="ep-path">/api/sms/live/stream</span><span class="ep-desc">SSE push stream real-time</span></div>
+      <div class="ep"><span class="ep-m ep-get">GET</span><span class="ep-path">/api/sms/received</span><span class="ep-desc">Histori SMS per range + nomor</span></div>
+      <div class="ep"><span class="ep-m ep-get">GET</span><span class="ep-path">/api/ranges</span><span class="ep-desc">Daftar range aktif</span></div>
+      <div class="ep"><span class="ep-m ep-get">GET</span><span class="ep-path">/api/numbers</span><span class="ep-desc">Nomor di range tertentu</span></div>
+      <div class="ep"><span class="ep-m ep-get">GET</span><span class="ep-path">/api/numbers/my</span><span class="ep-desc">My Numbers di akun iVAS</span></div>
+      <div class="ep"><span class="ep-m ep-get">GET</span><span class="ep-path">/api/check-number</span><span class="ep-desc">Cek ketersediaan nomor</span></div>
+      <div class="ep"><span class="ep-m ep-post">POST</span><span class="ep-path">/api/numbers/add</span><span class="ep-desc">Tambah nomor (by ID / range / nomor)</span></div>
+      <div class="ep"><span class="ep-m ep-post">POST</span><span class="ep-path">/api/numbers/delete</span><span class="ep-desc">Hapus / kembalikan nomor</span></div>
+      <div class="ep"><span class="ep-m ep-post">POST</span><span class="ep-path">/api/ws/reconnect</span><span class="ep-desc">Reconnect WebSocket iVAS</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="kontak">
+  <div class="wrap">
+    <div class="section-pill">Developer</div>
+    <h2 class="section-h">KY-SHIRO OFFICIAL</h2>
+    <p class="section-sub">Pertanyaan, bug, atau mau kolaborasi — hubungi lewat kanal berikut.</p>
+    <div class="contact-grid">
+      <a href="https://t.me/shiroky1" target="_blank" class="contact-card"><div class="contact-icon">✈</div><div class="contact-plat">Telegram</div><div class="contact-val">@shiroky1</div></a>
+      <a href="mailto:kikimodesad8@gmail.com" class="contact-card"><div class="contact-icon">✉</div><div class="contact-plat">Email</div><div class="contact-val">kikimodesad8@gmail.com</div></a>
+      <a href="https://instagram.com/kiki_fzl1" target="_blank" class="contact-card"><div class="contact-icon">◎</div><div class="contact-plat">Instagram</div><div class="contact-val">@kiki_fzl1</div></a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>© 2025 KY-SHIRO OFFICIAL — SMS OTP API Platform</p>
+    <p style="margin-top:10px">
+      <a href="/login">Masuk</a><a href="/register">Daftar</a><a href="#kontak">Kontak</a>
+    </p>
+  </div>
+</footer>
+{% endblock %}

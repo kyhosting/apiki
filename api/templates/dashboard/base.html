@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block head %}
+<style>
+.app{display:flex;min-height:100vh}
+
+/* ── SIDEBAR ── */
+.sb{width:248px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:200;transition:transform .3s}
+.sb-logo{padding:18px 16px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.sb-mark{width:36px;height:36px;border-radius:10px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff;font-family:var(--mono);flex-shrink:0;box-shadow:0 2px 10px rgba(124,111,255,.3)}
+.sb-name{font-size:13px;font-weight:800;color:var(--ink)}.sb-name em{color:var(--accent);font-style:normal}
+.sb-sub{font-size:10px;color:var(--ink3);font-family:var(--mono);margin-top:1px}
+
+.sb-nav{flex:1;padding:10px 8px;overflow-y:auto}
+.sb-sec{font-size:10px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:1px;padding:10px 10px 4px}
+.sb-item{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:9px;font-size:13.5px;font-weight:500;color:var(--ink2);transition:all .15s;margin-bottom:1px;cursor:pointer}
+.sb-item:hover{background:var(--card);color:var(--ink)}
+.sb-item.active{background:rgba(124,111,255,.12);color:var(--accent);font-weight:600}
+.sb-item .ic{width:18px;text-align:center;font-size:15px;flex-shrink:0}
+.sb-badge{margin-left:auto;background:var(--accent);color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:10px;font-family:var(--mono)}
+.sb-badge-green{background:rgba(0,232,135,.15);color:var(--green);border:1px solid rgba(0,232,135,.2)}
+
+.sb-foot{padding:10px 8px;border-top:1px solid var(--border)}
+.sb-user{display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;background:var(--card);margin-bottom:6px}
+.sb-av{width:32px;height:32px;border-radius:9px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;flex-shrink:0}
+.sb-uname{font-size:13px;font-weight:600;color:var(--ink)}
+.sb-urole{font-size:10px;color:var(--ink3);font-family:var(--mono)}
+
+/* iVAS status indicator in sidebar */
+.ivas-status-bar{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:9px;background:var(--card2);border:1px solid var(--border);margin-bottom:6px;font-size:12px;cursor:pointer;transition:border-color .2s}
+.ivas-status-bar:hover{border-color:var(--accent)}
+
+/* ── TOPBAR ── */
+.topbar{height:56px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 24px;position:sticky;top:0;z-index:100}
+.topbar-title{font-size:15px;font-weight:700;color:var(--ink)}
+.topbar-right{display:flex;align-items:center;gap:8px}
+.tb-btn{padding:6px 14px;border-radius:8px;font-size:13px;font-weight:500;color:var(--ink2);transition:all .15s;cursor:pointer}
+.tb-btn:hover{background:var(--card);color:var(--ink)}
+.hbg{display:none;flex-direction:column;gap:4px;cursor:pointer;padding:8px}
+.hbg span{display:block;width:20px;height:2px;background:var(--ink2);border-radius:1px}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:150}
+
+/* ── MAIN ── */
+.main{margin-left:248px;flex:1;display:flex;flex-direction:column;min-height:100vh}
+.content{padding:24px;flex:1}
+
+/* ── STATS GRID ── */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:20px}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px}
+.stat-icon{font-size:20px;margin-bottom:10px}
+.stat-val{font-size:26px;font-weight:800;color:var(--ink);font-family:var(--mono);line-height:1}
+.stat-label{font-size:12px;color:var(--ink2);margin-top:4px;font-weight:500}
+
+/* ── PAGE HEADER ── */
+.page-hdr{margin-bottom:22px}
+.page-title{font-size:22px;font-weight:800;color:var(--ink);letter-spacing:-.4px}
+.page-sub{font-size:14px;color:var(--ink2);margin-top:4px}
+
+/* ── SECTION ── */
+.section-title{font-size:11px;font-weight:700;color:var(--ink2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+
+/* ── CODE BLOCK ── */
+.codeblock{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px 16px;font-family:var(--mono);font-size:12.5px;color:var(--ink2);overflow-x:auto;line-height:1.8}
+.codeblock .k{color:#c678dd}.codeblock .s{color:#98c379}.codeblock .v{color:#e5c07b}.codeblock .c{color:var(--ink3)}
+
+@media(max-width:768px){
+  .sb{transform:translateX(-100%)}.sb.open{transform:none}
+  .main{margin-left:0}.hbg{display:flex}.overlay.show{display:block}
+  .content{padding:14px}.stats-grid{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+{% endblock %}
+{% block body %}
+<div class="overlay" id="ov" onclick="closeSb()"></div>
+<div class="app">
+  <aside class="sb" id="sb">
+    <div class="sb-logo">
+      <div class="sb-mark">KY</div>
+      <div><div class="sb-name"><em>KY-SHIRO</em> API</div><div class="sb-sub">SMS OTP Platform</div></div>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-sec">Utama</div>
+      <a href="/dashboard" class="sb-item {% if request.path=='/dashboard' %}active{% endif %}"><span class="ic">⌂</span>Dashboard</a>
+      <a href="/dashboard/ivas-login" class="sb-item {% if '/ivas-login' in request.path %}active{% endif %}">
+        <span class="ic">🔐</span>Login iVAS
+        <span id="ivas-pill" class="sb-badge" style="display:none"></span>
+      </a>
+
+      <div class="sb-sec">SMS</div>
+      <a href="/dashboard/sms-live" class="sb-item {% if '/sms-live' in request.path %}active{% endif %}"><span class="ic">⚡</span>SMS Live <span id="live-count" class="sb-badge sb-badge-green" style="display:none">0</span></a>
+      <a href="/dashboard/sms-received" class="sb-item {% if '/sms-received' in request.path %}active{% endif %}"><span class="ic">✉</span>SMS Received</a>
+
+      <div class="sb-sec">Nomor</div>
+      <a href="/dashboard/numbers" class="sb-item {% if '/numbers' in request.path and '/check' not in request.path %}active{% endif %}"><span class="ic">☎</span>My Numbers</a>
+      <a href="/dashboard/check-number" class="sb-item {% if '/check-number' in request.path %}active{% endif %}"><span class="ic">◎</span>Cek Nomor</a>
+      <a href="/dashboard/ranges" class="sb-item {% if '/ranges' in request.path %}active{% endif %}"><span class="ic">◈</span>Ranges</a>
+
+      <div class="sb-sec">Akun</div>
+      <a href="/dashboard/apikey" class="sb-item {% if '/apikey' in request.path %}active{% endif %}"><span class="ic">⚿</span>API Key</a>
+      <a href="/dashboard/docs" class="sb-item {% if '/docs' in request.path %}active{% endif %}"><span class="ic">📖</span>Dokumentasi</a>
+      <a href="/dashboard/profile" class="sb-item {% if '/profile' in request.path %}active{% endif %}"><span class="ic">◉</span>Profil</a>
+
+      {% if user.role == 'admin' %}
+      <div class="sb-sec">Admin</div>
+      <a href="/admin" class="sb-item {% if request.path=='/admin' %}active{% endif %}"><span class="ic">⚙</span>Panel Admin</a>
+      {% endif %}
+    </nav>
+
+    <div class="sb-foot">
+      <div class="ivas-status-bar" onclick="location.href='/dashboard/ivas-login'" title="Klik untuk login iVAS">
+        <span class="dot dot-red dot-pulse" id="sb-ivas-dot"></span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:600;color:var(--ink)" id="sb-ivas-label">iVAS: Disconnected</div>
+          <div style="font-size:10px;color:var(--ink3)" id="sb-ivas-email"></div>
+        </div>
+      </div>
+      <div class="sb-user">
+        <div class="sb-av">{{ user.nama[0].upper() if user.nama else 'U' }}</div>
+        <div>
+          <div class="sb-uname">{{ user.nama[:16] }}</div>
+          <div class="sb-urole">{{ user.role }}</div>
+        </div>
+      </div>
+      <a href="/logout" class="sb-item" style="color:var(--red)"><span class="ic">⏻</span>Keluar</a>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="hbg" onclick="openSb()"><span></span><span></span><span></span></div>
+        <span class="topbar-title">{% block page_title %}Dashboard{% endblock %}</span>
+      </div>
+      <div class="topbar-right">
+        <span id="ws-indicator" style="font-size:12px;color:var(--ink3);font-family:var(--mono)"></span>
+        <a href="/dashboard/apikey" class="tb-btn">API Key</a>
+        <a href="/logout" class="tb-btn" style="color:var(--red)">Keluar</a>
+      </div>
+    </header>
+
+    <div class="content">
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+</div>
+
+<script>
+function openSb(){document.getElementById('sb').classList.add('open');document.getElementById('ov').classList.add('show')}
+function closeSb(){document.getElementById('sb').classList.remove('open');document.getElementById('ov').classList.remove('show')}
+
+// Poll iVAS status setiap 10 detik
+async function pollIvasStatus(){
+  try {
+    const d = await apiFetch('/api/ivas/status');
+    const dot = document.getElementById('sb-ivas-dot');
+    const lbl = document.getElementById('sb-ivas-label');
+    const em  = document.getElementById('sb-ivas-email');
+    const pill= document.getElementById('ivas-pill');
+    const wsInd=document.getElementById('ws-indicator');
+    const liveCount=document.getElementById('live-count');
+
+    if(d.ivas_connected){
+      dot.className='dot dot-green';
+      lbl.textContent=`iVAS: Connected`;
+      em.textContent= d.ivas_email?d.ivas_email.split('@')[0]:'';
+      if(pill){pill.textContent='✓';pill.style.display='inline-block'}
+    } else {
+      dot.className='dot dot-red dot-pulse';
+      lbl.textContent='iVAS: Disconnected';
+      em.textContent='Klik untuk login';
+      if(pill) pill.style.display='none';
+    }
+    if(d.ws_connected){
+      wsInd.innerHTML=`<span class="dot dot-green"></span> WS Live`;
+    } else {
+      wsInd.textContent='';
+    }
+    if(d.ws_cached_sms>0){
+      liveCount.textContent=d.ws_cached_sms;
+      liveCount.style.display='inline-block';
+    } else {
+      liveCount.style.display='none';
+    }
+  } catch(e){}
+}
+pollIvasStatus();
+setInterval(pollIvasStatus, 10000);
+</script>
+{% block scripts %}{% endblock %}
+{% endblock %}

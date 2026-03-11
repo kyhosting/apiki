@@ -1,0 +1,43 @@
+{% extends "dashboard/base.html" %}{% block page_title %}Profil{% endblock %}{% block content %}
+<div class="page-hdr"><div class="page-title">◉ Profil</div><div class="page-sub">Kelola informasi akun KY-SHIRO kamu</div></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:800px">
+  <div class="card">
+    <div class="card-header"><div class="card-title">◉ Informasi Akun</div></div>
+    <div class="form-group"><label class="form-label">Username</label><input type="text" value="{{ user.username }}" class="form-input" disabled/></div>
+    <div class="form-group"><label class="form-label">Nama</label><input type="text" id="pNama" value="{{ user.nama }}" class="form-input"/></div>
+    <div class="form-group"><label class="form-label">Email</label><input type="email" id="pEmail" value="{{ user.email }}" class="form-input"/></div>
+    <div class="form-group"><label class="form-label">Nomor WA</label><input type="text" value="{{ user.nomor_wa }}" class="form-input" disabled/><div class="form-hint">Tidak bisa diubah. Hubungi admin.</div></div>
+    <button class="btn btn-primary" onclick="saveProfile()" style="width:100%">Simpan</button>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-title">🔒 Ganti Password</div></div>
+    <div class="form-group"><label class="form-label">Password Lama</label><input type="password" id="oldPw" class="form-input" placeholder="Password saat ini"/></div>
+    <div class="form-group"><label class="form-label">Password Baru</label><input type="password" id="newPw" class="form-input" placeholder="Minimal 8 karakter"/></div>
+    <div class="form-group"><label class="form-label">Konfirmasi</label><input type="password" id="newPw2" class="form-input" placeholder="Ulangi password baru"/></div>
+    <button class="btn btn-primary" onclick="changePw()" style="width:100%">Ubah Password</button>
+  </div>
+</div>
+<div class="card" style="margin-top:14px;max-width:800px">
+  <div class="card-header"><div class="card-title">ℹ Detail Akun</div></div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;font-size:13px">
+    <div><span style="color:var(--ink2)">Role: </span><span class="badge {% if user.role=='admin' %}badge-yellow{% else %}badge-blue{% endif %}">{{ user.role }}</span></div>
+    <div><span style="color:var(--ink2)">Status: </span><span class="badge badge-green">Aktif</span></div>
+    <div><span style="color:var(--ink2)">iVAS: </span><span class="badge {% if user.ivas_status=='connected' %}badge-green{% else %}badge-gray{% endif %}">{{ user.ivas_status }}</span></div>
+    <div><span style="color:var(--ink2)">Daftar: </span><span>{{ user.created_at[:10] if user.created_at else '-' }}</span></div>
+    <div><span style="color:var(--ink2)">Login: </span><span>{{ user.last_login[:16].replace('T',' ') if user.last_login else '-' }}</span></div>
+  </div>
+</div>
+<script>
+async function saveProfile(){
+  const d=await apiPost('/api/update-profile',{nama:document.getElementById('pNama').value,email:document.getElementById('pEmail').value});
+  if(d.status==='ok') toast('Profil disimpan','ok'); else toast(d.message||'Gagal','err');
+}
+async function changePw(){
+  const op=document.getElementById('oldPw').value,np=document.getElementById('newPw').value,np2=document.getElementById('newPw2').value;
+  if(np!==np2){toast('Password tidak cocok','err');return}
+  if(np.length<8){toast('Minimal 8 karakter','err');return}
+  const d=await apiPost('/api/change-password',{old_password:op,new_password:np,new_password2:np2});
+  if(d.status==='ok'){toast('Password berhasil diubah','ok');document.getElementById('oldPw').value='';document.getElementById('newPw').value='';document.getElementById('newPw2').value='';}
+  else toast(d.message||'Gagal','err');
+}
+</script>{% endblock %}

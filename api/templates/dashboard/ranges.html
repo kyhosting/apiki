@@ -1,0 +1,54 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}Ranges{% endblock %}
+{% block content %}
+<div class="page-hdr"><div class="page-title">◈ Ranges</div><div class="page-sub">Daftar range nomor yang aktif berdasarkan tanggal</div></div>
+<div class="card" style="margin-bottom:14px">
+  <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end">
+    <div><div class="form-label" style="margin-bottom:4px">Dari</div><input type="date" id="fd" class="form-input" style="width:160px"/></div>
+    <div><div class="form-label" style="margin-bottom:4px">Sampai</div><input type="date" id="td" class="form-input" style="width:160px"/></div>
+    <div><div class="form-label" style="margin-bottom:4px">Search</div><input type="text" id="q" class="form-input" placeholder="Nama range..." style="width:200px" oninput="filterRng()"/></div>
+    <button class="btn btn-primary" onclick="loadRng()">◈ Cari</button>
+    <span id="st" style="font-size:12px;color:var(--ink2);align-self:center;font-family:var(--mono)"></span>
+  </div>
+</div>
+<div class="tbl-wrap">
+  <table>
+    <thead><tr><th>Nama Range</th><th>Range ID</th><th>Aksi</th></tr></thead>
+    <tbody id="rngBody"><tr><td colspan="3" style="text-align:center;padding:28px;color:var(--ink2)">Klik Cari untuk menampilkan range</td></tr></tbody>
+  </table>
+</div>
+<script>
+const today=new Date().toISOString().slice(0,10);
+document.getElementById('fd').value=today;document.getElementById('td').value=today;
+let allRng=[];
+async function loadRng(){
+  const st=document.getElementById('st'),body=document.getElementById('rngBody');
+  st.innerHTML='<span class="spin"></span>';
+  body.innerHTML=`<tr><td colspan="3" style="text-align:center;padding:20px;color:var(--ink2)"><span class="spin"></span></td></tr>`;
+  const d=await apiFetch(`/api/ranges?from=${document.getElementById('fd').value}&to=${document.getElementById('td').value}`);
+  allRng=d.ranges||[];
+  st.textContent=`${allRng.length} range`;
+  renderRng(allRng);
+}
+function filterRng(){const q=document.getElementById('q').value.toLowerCase();renderRng(allRng.filter(r=>(r.name||'').toLowerCase().includes(q)));}
+function renderRng(list){
+  const body=document.getElementById('rngBody');
+  if(!list.length){body.innerHTML=`<tr><td colspan="3" style="text-align:center;padding:24px;color:var(--ink2)">Tidak ada range</td></tr>`;return}
+  body.innerHTML=list.map(r=>`<tr>
+    <td style="font-weight:700">${escHtml(r.name)}</td>
+    <td style="font-family:var(--mono);font-size:12px;color:var(--ink2)">${escHtml(r.id)}</td>
+    <td>
+      <button class="btn btn-outline btn-xs" onclick="location.href='/dashboard/sms-received'">SMS</button>
+      <button class="btn btn-outline btn-xs" onclick="addByRange('${r.name.replace(/'/g,"\\'")}')">+ Tambah Nomor</button>
+    </td>
+  </tr>`).join('');
+}
+async function addByRange(rng){
+  if(!confirm(`Tambah semua nomor dari range "${rng}"?`))return;
+  toast('Menambahkan...','info');
+  const d=await apiJson('/api/numbers/add',{range_name:rng});
+  if(d.status==='ok') toast(`✅ ${d.added} nomor ditambahkan`,'ok');
+  else toast(d.message||'Gagal','err');
+}
+</script>
+{% endblock %}

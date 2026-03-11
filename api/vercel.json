@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "app.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "app.py"
+    }
+  ],
+  "env": {
+    "SECRET_KEY": "@kyshiro-secret-key",
+    "WA_BOT_URL": "@wa-bot-url",
+    "WA_BOT_TOKEN": "@wa-bot-token",
+    "DB_PATH": "/tmp/kyshiro.db"
+  }
+}
