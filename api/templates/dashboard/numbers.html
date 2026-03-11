@@ -193,8 +193,8 @@ let _testData=[], _testPage=1, _testPS=20;
 let _selIds=new Set(), _testLoaded=false;
 let _myTimer=null, _testTimer=null;
 
-function debounceMy(){ clearTimeout(_myTimer); _myTimer=setTimeout(loadMy,400); }
-function debounceTest(){ clearTimeout(_testTimer); _testTimer=setTimeout(loadTest,400); }
+function debounceMy(){ clearTimeout(_myTimer); _myTimer=setTimeout(loadMy,600); }
+function debounceTest(){ clearTimeout(_testTimer); _testTimer=setTimeout(loadTest,600); }
 
 function switchTab(t){
   document.getElementById('tab-my').classList.toggle('active',t==='my');
@@ -228,7 +228,7 @@ async function loadMy(){
   try{
     const d=await _apiFetch(`/api/numbers/my-list?search=${encodeURIComponent(s)}&limit=${lim}`);
     _myData=d.numbers||[];
-    document.getElementById('my-total-ivas').textContent=d.total_ivas||_myData.length;
+    document.getElementById('my-total-ivas').textContent=(d.total_ivas!=null?d.total_ivas:_myData.length);
     document.getElementById('my-total').textContent=_myData.length;
     renderMy();
   }catch(e){
@@ -301,7 +301,7 @@ async function loadTest(){
   try{
     const d=await _apiFetch(`/api/numbers/test-list?search=${encodeURIComponent(s)}&limit=${lim}`);
     _testData=d.numbers||[];
-    document.getElementById('test-total-ivas').textContent=d.total_ivas||'?';
+    document.getElementById('test-total-ivas').textContent=(d.total_ivas!=null?d.total_ivas:0);
     document.getElementById('test-total').textContent=_testData.length;
     renderTest();
   }catch(e){

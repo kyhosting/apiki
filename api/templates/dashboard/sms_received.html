@@ -198,45 +198,51 @@ function rngRowHtml(rng, fd, td) {
 
 // ── Load stats per range: get numbers → count SMS per number ──
 async function loadRangeStats(rngName, id, fd, td) {
+  const se = (el, v) => { const x=document.getElementById(el); if(x) x.textContent=v }
   try {
     // Step 1: get numbers in range
     const nd = await _apiFetch(`/api/numbers?range=${encodeURIComponent(rngName)}&from=${fd}&to=${td}`)
-    if (!nd) return
+    // FIX: selalu resolve '...' — kalau gagal/error set ke 0, jangan biarkan stuck
+    if (!nd || nd.status === 'error') {
+      se('rc-'+id, 0); se('rp-'+id, 0); se('ru-'+id, 0); se('rr-'+id, '$0.00')
+      return
+    }
     const nums = nd.numbers || []
 
-    // Step 2: get SMS per number (parallel batches of 3)
+    // FIX: kalau tidak ada nomor, langsung set 0 — jangan tunggu request SMS
+    if (!nums.length) {
+      se('rc-'+id, 0); se('rp-'+id, 0); se('ru-'+id, 0); se('rr-'+id, '$0.00')
+      window['_nums_'+id] = []
+      return
+    }
+
+    // Step 2: get SMS per number — batches of 5 (lebih cepat dari 3)
     let tot=0, paid=0, unpaid=0
     const RATE = 0.01200
+    const BATCH = 5
 
-    for (let i=0; i<nums.length; i+=3) {
-      const batch = nums.slice(i, i+3)
+    for (let i=0; i<nums.length; i+=BATCH) {
+      const batch = nums.slice(i, i+BATCH)
       await Promise.all(batch.map(async n => {
         try {
           const sd = await _apiFetch(`/api/sms/received?range=${encodeURIComponent(rngName)}&number=${encodeURIComponent(n.number)}&from=${fd}&to=${td}`)
-          if (!sd) return
+          if (!sd || sd.status === 'error') return
           const msgs = sd.messages || []
-          // msgs are plain strings (from ivas_get_sms)
-          // Count paid/unpaid based on keyword in message or total
-          const p = msgs.filter(m => {
-            if (typeof m === 'object') return m.paid === 'Paid'
-            // Plain string — no paid status available
-            return false
-          }).length
+          const p = msgs.filter(m => typeof m === 'object' && m.paid === 'Paid').length
           const count = msgs.length
-          tot += count
-          paid += p
-          unpaid += (count - p)
+          tot += count; paid += p; unpaid += (count - p)
         } catch {}
       }))
+      // FIX: update stats setelah setiap batch — jadi angka muncul progressive
+      // bukan tetap '...' sampai semua selesai
+      se('rc-'+id, tot); se('rp-'+id, paid); se('ru-'+id, unpaid)
+      se('rr-'+id, '$'+(paid*RATE).toFixed(2)+' USD')
     }
 
     const rev = paid * RATE
 
-    // Update row cells
-    const se = (el, v) => { const x=document.getElementById(el); if(x) x.textContent=v }
-    se('rc-'+id, tot)
-    se('rp-'+id, paid)
-    se('ru-'+id, unpaid)
+    // Final update row cells
+    se('rc-'+id, tot); se('rp-'+id, paid); se('ru-'+id, unpaid)
     se('rr-'+id, tot > 0 ? ('$'+rev.toFixed(2)+' USD') : '$0.00')
 
     // Update global totals
@@ -246,7 +252,9 @@ async function loadRangeStats(rngName, id, fd, td) {
     // Cache nums for when user opens range
     window['_nums_'+id] = nums
   } catch(e) {
-    const x = document.getElementById('rc-'+id); if(x) x.textContent='err'
+    // FIX: error pun harus resolve '...' ke angka, bukan stuck
+    se('rc-'+id, 0); se('rp-'+id, 0); se('ru-'+id, 0); se('rr-'+id, '$0.00')
+    console.warn('[SMS-RECV] loadRangeStats error:', rngName, e)
   }
 }
 

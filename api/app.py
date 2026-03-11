@@ -555,14 +555,22 @@ def ivas_get_sms(user_id, phone, range_name, from_date, to_date):
 # ─── iVAS: DataTables (Test Numbers + My Numbers) ────────────────
 def _fetch_datatables(user_id, base_url, search="", length=100,
                       col_data=None, col_name=None, fallback_fields=None):
-    """Fetch DataTables JSON dari iVAS. Return (rows, recordsTotal)."""
+    """Fetch DataTables JSON dari iVAS. Return (rows, recordsTotal).
+    
+    FIX: col_data untuk /portal/numbers/test sekarang pakai semua field
+    confirmed dari debug iVAS: id, range, test_number, A2P, term,
+    Limit_Range, limit_did_a2p, limit_cli_did_a2p, created_at, action.
+    """
     sess = get_ivas_session(user_id)
     if not sess: return [], 0
     if col_data is None:
-        col_data = ["range", "test_number"]
-        col_name = ["terminations.range", "terminations.test_number"]
+        # CONFIRMED dari debug iVAS — field lengkap /portal/numbers/test
+        col_data = ["id","range","test_number","A2P","term","Limit_Range",
+                    "limit_did_a2p","limit_cli_did_a2p","created_at","action"]
+        col_name = ["id","terminations.range","terminations.test_number","A2P","term",
+                    "Limit_Range","limit_did_a2p","limit_cli_did_a2p","created_at","action"]
     if fallback_fields is None:
-        fallback_fields = ["range","test_number","term","A2P","Limit_Range",
+        fallback_fields = ["id","range","test_number","A2P","term","Limit_Range",
                            "limit_did_a2p","limit_cli_did_a2p","created_at","action"]
     col_qs = "".join(
         f"&columns[{i}][data]={d}&columns[{i}][name]={n}"
@@ -588,19 +596,35 @@ def _fetch_datatables(user_id, base_url, search="", length=100,
         total = data.get("recordsTotal", len(rows))
         if rows and isinstance(rows[0], list):
             rows = [dict(zip(fallback_fields, r)) for r in rows]
+        logger.info(f"[DT] user={user_id} {base_url} → {len(rows)} rows, total={total}")
         return rows, total
     except Exception as e:
         logger.error(f"[DT] user={user_id} {base_url}: {e}")
         return [], 0
 
+
 def _fetch_my_numbers(user_id, search="", length=100):
-    """Fetch My Numbers dari /portal/numbers."""
+    """Fetch My Numbers dari /portal/numbers.
+    
+    FIX: Selalu fetch TANPA search ke iVAS (server-side search iVAS tidak
+    support filter by range_name). Filter dilakukan client-side di Python
+    setelah semua data diambil, sehingga search 'TOGO' bisa match range_name.
+    """
     col_data = ["Number","range","A2P","LimitA2P","limit_did_a2p","limit_cli_a2p","number_id","action"]
-    col_name = col_data[:]
+    col_name = ["Number","range","A2P","LimitA2P","limit_did_a2p","limit_cli_a2p","number_id","action"]
     fallback = col_data[:]
-    return _fetch_datatables(user_id, f"{IVAS_BASE}/portal/numbers",
-        search=search, length=length,
+    # SELALU fetch tanpa search — filter client-side
+    rows, total = _fetch_datatables(user_id, f"{IVAS_BASE}/portal/numbers",
+        search="", length=length,
         col_data=col_data, col_name=col_name, fallback_fields=fallback)
+    # Client-side filter kalau ada search
+    if search and rows:
+        s_low = search.lower()
+        rows = [r for r in rows if
+                s_low in re.sub(r"<[^>]+>","",str(r.get("Number",""))).lower() or
+                s_low in re.sub(r"<[^>]+>","",str(r.get("range",""))).lower()]
+        logger.info(f"[MY-NUMS] user={user_id} filter '{search}' → {len(rows)} rows")
+    return rows, total
 
 def _get_number_id(row):
     """Ambil termination ID dari row DataTables."""
@@ -1983,26 +2007,42 @@ def api_numbers():
 @app.route("/api/numbers/test-list")
 @ivas_required
 def api_numbers_test_list():
-    """Daftar Test Numbers dari /portal/numbers/test (DataTables)."""
+    """Daftar Test Numbers dari /portal/numbers/test (DataTables).
+    FIX: col_data eksplisit sesuai field confirmed iVAS. Filter client-side.
+    """
     uid    = g.uid
     search = request.args.get("search","").strip()
     limit  = min(int(request.args.get("limit",100)), 1000)
+    # CONFIRMED field dari debug iVAS
+    col_data = ["id","range","test_number","A2P","term","Limit_Range",
+                "limit_did_a2p","limit_cli_did_a2p","created_at","action"]
+    col_name = ["id","terminations.range","terminations.test_number","A2P","term",
+                "Limit_Range","limit_did_a2p","limit_cli_did_a2p","created_at","action"]
+    fallback = col_data[:]
+    # Fetch tanpa search ke iVAS — filter client-side
     rows, total = _fetch_datatables(uid, f"{IVAS_BASE}/portal/numbers/test",
-        search=search, length=limit)
+        search="", length=limit,
+        col_data=col_data, col_name=col_name, fallback_fields=fallback)
     clean = []
     for row in rows:
         def _s(k): return re.sub(r"<[^>]+>","",str(row.get(k,""))).strip()
-        test_num = _s("test_number") or _s("number") or _s("TestNumber")
+        test_num   = _s("test_number") or _s("number") or _s("TestNumber")
+        range_name = _s("range") or _s("Range") or _s("range_name")
         if not test_num: continue
+        # Client-side search filter
+        if search:
+            s_low = search.lower()
+            if s_low not in test_num.lower() and s_low not in range_name.lower():
+                continue
         clean.append({
             "number_id":       _get_number_id(row),
-            "range_name":      _s("range") or _s("Range") or _s("range_name"),
+            "range_name":      range_name,
             "test_number":     test_num,
             "term":            _s("term") or _s("Term"),
             "rate_a2p":        _s("A2P") or _s("rate") or _s("Rate"),
             "limit_range":     _s("Limit_Range") or _s("Country_Limit") or _s("country_limit"),
-            "sid_range_limit": _s("SID_Range") or _s("sid_range") or _s("Limit_SID_Range") or "400",
-            "sid_did_limit":   _s("SID_DID") or _s("sid_did") or _s("Limit_SID_DID") or "40",
+            "sid_range_limit": _s("limit_cli_did_a2p") or _s("SID_Range") or _s("sid_range") or "400",
+            "sid_did_limit":   _s("limit_did_a2p") or _s("SID_DID") or _s("sid_did") or "40",
         })
     return jsonify({"status":"ok","total_ivas":total,"total":len(clean),"numbers":clean})
 
@@ -2010,7 +2050,10 @@ def api_numbers_test_list():
 @app.route("/api/numbers/my-list")
 @ivas_required
 def api_numbers_my_list():
-    """Daftar My Numbers dari /portal/numbers (DataTables)."""
+    """Daftar My Numbers dari /portal/numbers (DataTables).
+    FIX: search ditangani client-side di _fetch_my_numbers sehingga
+    filter by range_name (mis. 'TOGO') bisa match meski iVAS tidak support.
+    """
     uid    = g.uid
     search = request.args.get("search","").strip()
     limit  = min(int(request.args.get("limit",200)), 1000)
