@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: kyshiro-api
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: WA_BOT_TOKEN
+        value: kyshiro-wa-secret
+      - key: DB_PATH
+        value: /tmp/kyshiro.db
+      - key: PORT
+        value: 10000
