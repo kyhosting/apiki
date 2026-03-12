@@ -307,24 +307,39 @@ async function loadMy(){
   }
 }
 
-// ── Pagination helper: prev/next + window of 7 pages ──────────────
-function _buildPager(cur, total, varName, callFn) {
+// ── Pagination helper — fixed, no eval string ──────────────────
+function _buildPager(cur, total, type) {
+  // type: 'my' or 'test'
   if (total <= 1) return '';
   const btns = [];
+  const go = (p) => `_goPage('${type}',${p})`;
   // Prev
-  btns.push(`<button class="pg-btn" ${cur<=1?'disabled':''} onclick="${varName}=${cur-1};${callFn}">‹</button>`);
-  // Page window: show 7 pages centered on current
+  btns.push(`<button class="pg-btn" ${cur<=1?'disabled':''} onclick="${go(cur-1)}">‹ Prev</button>`);
+  // Page window
   const half = 3;
   let from = Math.max(1, cur - half);
   let to   = Math.min(total, from + 6);
   if (to - from < 6) from = Math.max(1, to - 6);
-  if (from > 1)  btns.push(`<button class="pg-btn" onclick="${varName}=1;${callFn}">1</button>${from>2?'<span style="padding:0 4px;color:var(--ink3)">…</span>':''}`);
+  if (from > 1) btns.push(`<button class="pg-btn" onclick="${go(1)}">1</button>${from>2?'<span style="padding:0 4px;color:var(--ink3)">…</span>':''}`);
   for (let p = from; p <= to; p++)
-    btns.push(`<button class="pg-btn${p===cur?' active':''}" onclick="${varName}=${p};${callFn}">${p}</button>`);
-  if (to < total) btns.push(`${to<total-1?'<span style="padding:0 4px;color:var(--ink3)">…</span>':''}<button class="pg-btn" onclick="${varName}=${total};${callFn}">${total}</button>`);
+    btns.push(`<button class="pg-btn${p===cur?' active':''}" onclick="${go(p)}">${p}</button>`);
+  if (to < total) btns.push(`${to<total-1?'<span style="padding:0 4px;color:var(--ink3)">…</span>':''}<button class="pg-btn" onclick="${go(total)}">${total}</button>`);
   // Next
-  btns.push(`<button class="pg-btn" ${cur>=total?'disabled':''} onclick="${varName}=${cur+1};${callFn}">›</button>`);
+  btns.push(`<button class="pg-btn" ${cur>=total?'disabled':''} onclick="${go(cur+1)}">Next ›</button>`);
   return btns.join('');
+}
+
+// Fungsi navigasi halaman — dipanggil dari onclick
+function _goPage(type, page) {
+  if (type === 'my') {
+    const pages = Math.ceil(_myData.length / _myPS);
+    _myPage = Math.max(1, Math.min(page, pages));
+    renderMy();
+  } else {
+    const pages = Math.ceil(_testData.length / _testPS);
+    _testPage = Math.max(1, Math.min(page, pages));
+    renderTest();
+  }
 }
 
 function renderMy(){
@@ -348,7 +363,7 @@ function renderMy(){
 </tr>`).join('');
   const tot=_myData.length, pages=Math.ceil(tot/_myPS);
   document.getElementById('my-info').textContent=`Showing ${s+1}–${Math.min(e,tot)} of ${tot}`;
-  document.getElementById('my-pg-btns').innerHTML=_buildPager(_myPage,pages,'_myPage','renderMy()');
+  document.getElementById('my-pg-btns').innerHTML=_buildPager(_myPage,pages,'my');
   pg.style.display='';
 }
 async function returnNum(tid,num,btn){
@@ -374,15 +389,27 @@ async function returnNum(tid,num,btn){
 
 async function bulkReturn(){
   if(!_selIds.size) return;
-  if(!confirm('Return '+_selIds.size+' nomor?')) return;
-  let ok=0,fail=0;
+  const count = _selIds.size;
+  if(!confirm(`Return ${count} nomor yang dipilih?`)) return;
+  const btn = document.getElementById('bulk-del-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Returning...';
+  let ok=0, fail=0;
+  // Kirim satu per satu dengan delay kecil agar tidak spam
   for(const tid of _selIds){
-    try{ const d=await _apiFetch(`/api/numbers/delete?termination_id=${tid}`,{method:'POST'}); d.success?ok++:fail++; }
-    catch{ fail++; }
+    try{
+      const d = await _apiFetch(`/api/numbers/delete?termination_id=${tid}`,{method:'POST'});
+      if(d && (d.success===true || d.status==='ok')) ok++;
+      else fail++;
+    } catch{ fail++; }
+    // Kecil delay antar request
+    await new Promise(r=>setTimeout(r,200));
   }
-  showToast('Return: '+ok+' berhasil, '+fail+' gagal');
+  showToast(`✅ Return selesai: ${ok} berhasil${fail>0?', '+fail+' gagal':''}`, ok>0?'ok':'error');
   _selIds.clear();
-  document.getElementById('bulk-del-btn').style.display='none';
+  btn.disabled = false;
+  btn.style.display = 'none';
+  btn.textContent = '🗑 Return Selected';
   loadMy();
 }
 
@@ -454,7 +481,7 @@ function renderTest(){
 </tr>`).join('');
   const tot=_testData.length, pages=Math.ceil(tot/_testPS);
   document.getElementById('test-info').textContent=`Showing ${s+1}–${Math.min(e,tot)} of ${tot}`;
-  document.getElementById('test-pg-btns').innerHTML=_buildPager(_testPage,pages,'_testPage','renderTest()');
+  document.getElementById('test-pg-btns').innerHTML=_buildPager(_testPage,pages,'test');
   pg.style.display='';
 }
 

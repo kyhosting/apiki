@@ -705,24 +705,39 @@ def ivas_add_number(user_id, termination_id):
 
 # ─── iVAS: Delete Number ─────────────────────────────────────────
 def ivas_delete_number(user_id, termination_id):
-    for path in [
-        "/portal/numbers/termination/number/delete",
-        "/portal/numbers/termination/details",
-        "/portal/numbers/return/number",
-    ]:
-        r, _ = do_ivas(user_id, "POST", f"{IVAS_BASE}{path}",
-            data={"id": termination_id},
-            headers={
-                "Accept": "application/json, text/javascript, */*; q=0.01",
-                "X-Requested-With": "XMLHttpRequest",
-                "Referer": f"{IVAS_BASE}/portal/numbers",
-                "Origin": IVAS_BASE,
-                "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-            })
-        if not r: continue
-        ok, msg, _ = _parse_ivas_resp(r)
-        if ok: return True, msg
-    return False, "Delete gagal"
+    """Return/hapus nomor dari iVAS. Pakai endpoint & field name yang sama dengan iVAS asli."""
+    headers = {
+        "Accept": "application/json, text/javascript, */*; q=0.01",
+        "X-Requested-With": "XMLHttpRequest",
+        "Referer": f"{IVAS_BASE}/portal/numbers",
+        "Origin": IVAS_BASE,
+        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+    }
+    # Field name asli iVAS adalah "NumberID" (bukan "id")
+    # Endpoint dari source code iVAS asli
+    endpoints = [
+        ("/portal/numbers/return/number",               {"NumberID": termination_id}),
+        ("/portal/numbers/return/number/bluck",         {"NumberID": termination_id}),
+        ("/portal/numbers/termination/number/delete",   {"NumberID": termination_id}),
+        ("/portal/numbers/return/number",               {"id": termination_id}),
+    ]
+    last_err = "Return gagal — semua endpoint dicoba"
+    for path, data in endpoints:
+        try:
+            r, _ = do_ivas(user_id, "POST", f"{IVAS_BASE}{path}",
+                data=data, headers=headers)
+            if not r:
+                logger.warning(f"[DELETE-NUM] path={path} → no response")
+                continue
+            ok, msg, raw = _parse_ivas_resp(r)
+            logger.info(f"[DELETE-NUM] path={path} data={data} ok={ok} msg={msg} raw={str(raw)[:120]}")
+            if ok:
+                return True, msg
+            last_err = msg or last_err
+        except Exception as e:
+            logger.error(f"[DELETE-NUM] path={path} exception: {e}")
+            last_err = str(e)
+    return False, last_err
 
 # ─── iVAS: Scrape public/test SMS dari XHR ───────────────────────
 def _ivas_scrape_public(user_id, limit=100, sid_filter="", rng_filter=""):

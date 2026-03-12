@@ -166,6 +166,7 @@ function closeSb(){document.getElementById('sb').classList.remove('open');docume
 //   - Kalau need_login (belum ada kredensial) → STOP, jangan retry sama sekali
 let _ivasReconnecting = false;
 let _ivasNoCredentials = false; // flag: belum ada kredensial, jangan retry
+let _ivasNextRetry    = 0;      // timestamp: kapan boleh reconnect lagi
 let _reconnectFailCount = 0;
 
 async function pollIvasStatus(){
@@ -225,9 +226,16 @@ async function pollIvasStatus(){
         return;
       }
 
-      // Anti-spam: hanya coba reconnect kalau flag bebas
-      if(!_ivasReconnecting){
+      // Anti-spam: hanya coba reconnect 1x, pakai cooldown ketat
+      // _ivasReconnecting = true saat sedang proses
+      // _ivasNextRetry = timestamp kapan boleh retry lagi
+      if(!_ivasReconnecting && Date.now() >= (_ivasNextRetry||0)){
         _ivasReconnecting = true;
+        _reconnectFailCount++;
+        // Cooldown eksponensial: 30s, 60s, 120s, 300s, max 600s (10 menit)
+        const cooldown = Math.min(30000 * Math.pow(2, _reconnectFailCount - 1), 600000);
+        _ivasNextRetry = Date.now() + cooldown;
+
         lbl.textContent='iVAS: Reconnecting...';
         em.textContent='Sedang coba reconnect...';
 
@@ -242,9 +250,9 @@ async function pollIvasStatus(){
             toast('iVAS reconnect berhasil ✓','ok');
             _ivasReconnecting = false;
             _reconnectFailCount = 0;
+            _ivasNextRetry = 0;
 
           } else if(rd && rd.need_login){
-            // Belum ada kredensial → STOP, jangan spam terus
             _ivasNoCredentials = true;
             _ivasReconnecting = false;
             lbl.textContent='iVAS: Disconnected';
@@ -252,12 +260,11 @@ async function pollIvasStatus(){
             em.textContent='Login iVAS dulu';
 
           } else {
-            // Gagal reconnect → backoff: makin lama makin jarang retry
-            _reconnectFailCount++;
-            const backoff = Math.min(60000 * _reconnectFailCount, 300000); // max 5 menit
+            // Gagal — tampilkan countdown retry
+            const retryIn = Math.round(cooldown/1000);
             lbl.textContent='iVAS: Disconnected';
-            em.textContent=`Retry dalam ${Math.round(backoff/1000)}s...`;
-            setTimeout(()=>{ _ivasReconnecting = false; }, backoff);
+            em.textContent=`Retry dalam ${retryIn}s... (attempt ${_reconnectFailCount})`;
+            _ivasReconnecting = false;
           }
         } catch(e){
           _ivasReconnecting = false;
