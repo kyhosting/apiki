@@ -2367,6 +2367,39 @@ def api_delete_number():
     ok, msg = ivas_delete_number(uid, term_id)
     return jsonify({"status":"ok" if ok else "error","termination_id":term_id,"success":ok,"message":msg})
 
+# ─── Return All Numbers ───────────────────────────────────────────
+@app.route("/api/numbers/return-all", methods=["POST"])
+@ivas_required
+def api_return_all_numbers():
+    """Return semua nomor user ke iVAS sekaligus via endpoint /portal/numbers/return/allnumber/bluck"""
+    uid = g.uid
+    headers = {
+        "Accept":           "application/json, text/javascript, */*; q=0.01",
+        "X-Requested-With": "XMLHttpRequest",
+        "Referer":          f"{IVAS_BASE}/portal/numbers",
+        "Origin":           IVAS_BASE,
+        "Content-Type":     "application/x-www-form-urlencoded; charset=UTF-8",
+    }
+    # Endpoint iVAS asli untuk return semua nomor sekaligus
+    try:
+        r, _ = do_ivas(uid, "POST", f"{IVAS_BASE}/portal/numbers/return/allnumber/bluck",
+            data={}, headers=headers)
+        if not r:
+            logger.error(f"[RETURN-ALL] user={uid} → no response")
+            return jsonify({"status":"error","message":"Tidak ada response dari iVAS"}), 502
+
+        ok, msg, raw = _parse_ivas_resp(r)
+        logger.info(f"[RETURN-ALL] user={uid} ok={ok} msg={msg} raw={raw[:150]}")
+
+        if ok:
+            return jsonify({"status":"ok","success":True,"message":msg or "Semua nomor berhasil di-return!"})
+        else:
+            return jsonify({"status":"error","success":False,"message":msg or "Gagal return semua nomor"}), 400
+
+    except Exception as e:
+        logger.error(f"[RETURN-ALL] user={uid} exception: {e}")
+        return jsonify({"status":"error","message":str(e)}), 500
+
 # ─── WS Reconnect ─────────────────────────────────────────────────
 @app.route("/api/ws/reconnect", methods=["POST"])
 @ivas_required

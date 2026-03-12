@@ -33,6 +33,8 @@
 .pg-btns{display:flex;gap:4px;flex-wrap:wrap}
 .pg-btn{padding:4px 10px;border-radius:6px;border:1px solid var(--border2);background:var(--card);color:var(--ink2);font-size:12px;cursor:pointer}
 .pg-btn:hover{background:var(--border)}.pg-btn.active{background:#f59e0b;color:#fff;border-color:#f59e0b}
+.btn-danger{background:#dc2626;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;font-weight:600}
+.btn-danger:hover{background:#b91c1c}.btn-danger:disabled{opacity:.5;cursor:not-allowed}
 .stat-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;background:var(--bg2);border:1px solid var(--border)}
 .err-box{padding:12px 16px;border-radius:10px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);color:#ef4444;font-size:13px;margin:12px 14px}
 .iv-empty{text-align:center;padding:44px;color:var(--ink3);font-size:13px}
@@ -93,6 +95,7 @@
         <span class="stat-chip">Loaded: <b id="my-total">—</b></span>
         <button class="btn-sm btn-outline" onclick="loadMy()">↻ Refresh</button>
         <button class="btn-sm btn-del" id="bulk-del-btn" onclick="bulkReturn()" style="display:none">🗑 Return Selected</button>
+        <button class="btn-sm btn-danger" id="return-all-btn" onclick="returnAllNumbers()">⚠️ Return ALL</button>
       </div>
     </div>
     <div id="my-err" class="err-box" style="display:none"></div>
@@ -368,7 +371,8 @@ function renderMy(){
 }
 async function returnNum(tid,num,btn){
   if(!tid) return showToast('Termination ID tidak ditemukan','error');
-  if(!confirm('Return nomor '+num+'?')) return;
+  const c1 = await kyConfirm({title:'Return Nomor',msg:`Yakin mau return nomor <b>${num}</b>?`,type:'warn',ok:'Ya, Return'});
+  if(!c1) return;
   btn.disabled=true; btn.textContent='⏳';
   try{
     const d=await _apiFetch(`/api/numbers/delete?termination_id=${tid}`,{method:'POST'});
@@ -390,7 +394,8 @@ async function returnNum(tid,num,btn){
 async function bulkReturn(){
   if(!_selIds.size) return;
   const count = _selIds.size;
-  if(!confirm(`Return ${count} nomor yang dipilih?`)) return;
+  const c2 = await kyConfirm({title:'Return '+count+' Nomor',msg:`Yakin mau return <b>${count} nomor</b> yang dipilih?`,type:'warn',ok:'Ya, Return'});
+  if(!c2) return;
   const btn = document.getElementById('bulk-del-btn');
   btn.disabled = true;
   btn.textContent = '⏳ Returning...';
@@ -411,6 +416,37 @@ async function bulkReturn(){
   btn.style.display = 'none';
   btn.textContent = '🗑 Return Selected';
   loadMy();
+}
+
+// ── Return ALL Numbers ─────────────────────────────────────────────
+async function returnAllNumbers(){
+  const totalEl = document.getElementById('my-total-ivas');
+  const total   = totalEl ? totalEl.textContent.trim() : '?';
+
+  // Konfirmasi berlapis keren
+  const c3a = await kyConfirm({title:'⚠️ Return Semua Nomor',msg:`Ini akan me-return <b>SEMUA ${total} nomor</b> kamu ke iVAS sekaligus.<br><br>Aksi ini <b>tidak bisa dibatalkan</b>.`,type:'danger',ok:'Lanjutkan'});
+  if(!c3a) return;
+  const c3b = await kyConfirm({title:'❗ Konfirmasi Terakhir',msg:`Apakah kamu benar-benar yakin?<br><br>Semua <b>${total} nomor</b> akan dikembalikan ke sistem dan tidak bisa di-undo.`,type:'danger',ok:'Ya, Return Semua!'});
+  if(!c3b) return;
+
+  const btn = document.getElementById('return-all-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Returning All...';
+
+  try {
+    const d = await _apiFetch('/api/numbers/return-all', {method:'POST'});
+    if(d && (d.success === true || d.status === 'ok')){
+      showToast('✅ ' + (d.message || 'Semua nomor berhasil di-return!'), 'ok');
+      loadMy(); // Refresh list
+    } else {
+      showToast('❌ ' + (d?.message || 'Gagal return semua nomor'), 'error');
+    }
+  } catch(e){
+    showToast('❌ Error: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '⚠️ Return ALL';
+  }
 }
 
 // TEST NUMBERS
@@ -531,26 +567,149 @@ async function modalAddNumber(){
   }catch(e){ showToast('Error: '+e.message,'error'); btn.disabled=false; btn.textContent='➕ Add Number'; }
 }
 
-function showToast(msg,type='ok'){
-  // Hapus toast lama dulu supaya tidak numpuk
-  document.querySelectorAll('.ky-toast').forEach(t=>t.remove());
-  const el=document.createElement('div');
-  el.className='ky-toast';
-  const bg = type==='ok'?'#22c55e': type==='warn'?'#f59e0b':'#ef4444';
-  const icon = type==='ok'?'✅': type==='warn'?'⚠️':'❌';
-  el.style.cssText=`position:fixed;bottom:32px;right:24px;z-index:99999;padding:14px 20px;border-radius:12px;font-size:14px;font-weight:700;color:#fff;background:${bg};box-shadow:0 8px 32px rgba(0,0,0,.5);max-width:360px;line-height:1.5;animation:toastIn .2s ease;display:flex;align-items:flex-start;gap:8px`;
-  el.innerHTML=`<span style="font-size:16px;flex-shrink:0">${icon}</span><span>${msg.replace(/^[✅❌⚠️]/,'').trim()}</span>`;
+// ════════════════════════════════════════════════
+//  KY-SHIRO Modal System — Toast + Confirm + Alert
+// ════════════════════════════════════════════════
+(function(){
+  // Inject CSS sekali
+  if(document.getElementById('ky-modal-css')) return;
+  const css = document.createElement('style');
+  css.id = 'ky-modal-css';
+  css.textContent = `
+    /* ── Toast ── */
+    .ky-toast{
+      position:fixed;top:28px;left:50%;transform:translateX(-50%) translateY(-80px);
+      z-index:999999;display:flex;align-items:center;gap:12px;
+      padding:14px 22px;border-radius:16px;min-width:260px;max-width:420px;
+      font-size:14px;font-weight:600;color:#fff;
+      box-shadow:0 8px 40px rgba(0,0,0,.55),0 2px 8px rgba(0,0,0,.3);
+      backdrop-filter:blur(12px);
+      transition:transform .35s cubic-bezier(.34,1.56,.64,1),opacity .3s ease;
+      opacity:0;pointer-events:none;
+    }
+    .ky-toast.show{transform:translateX(-50%) translateY(0);opacity:1;pointer-events:auto}
+    .ky-toast.hide{transform:translateX(-50%) translateY(-80px);opacity:0}
+    .ky-toast-icon{font-size:22px;flex-shrink:0;line-height:1}
+    .ky-toast-msg{flex:1;line-height:1.45}
+    .ky-toast-close{
+      cursor:pointer;opacity:.7;font-size:16px;padding:0 2px;
+      flex-shrink:0;line-height:1;transition:opacity .2s
+    }
+    .ky-toast-close:hover{opacity:1}
+    .ky-toast-bar{
+      position:absolute;bottom:0;left:0;height:3px;border-radius:0 0 16px 16px;
+      animation:toastBar linear forwards;
+    }
+    @keyframes toastBar{from{width:100%}to{width:0%}}
+
+    /* ── Modal Overlay ── */
+    .ky-overlay{
+      position:fixed;inset:0;z-index:999998;
+      background:rgba(0,0,0,.65);backdrop-filter:blur(4px);
+      display:flex;align-items:center;justify-content:center;
+      opacity:0;transition:opacity .25s ease;
+    }
+    .ky-overlay.show{opacity:1}
+    .ky-modal{
+      background:linear-gradient(145deg,#1a1a2e,#16213e);
+      border:1px solid rgba(255,255,255,.1);
+      border-radius:20px;padding:32px 28px 24px;
+      min-width:320px;max-width:440px;width:90%;
+      box-shadow:0 24px 80px rgba(0,0,0,.7);
+      transform:scale(.85) translateY(20px);
+      transition:transform .3s cubic-bezier(.34,1.56,.64,1);
+      position:relative;text-align:center;
+    }
+    .ky-overlay.show .ky-modal{transform:scale(1) translateY(0)}
+    .ky-modal-icon{font-size:52px;margin-bottom:14px;display:block;line-height:1}
+    .ky-modal-title{font-size:18px;font-weight:800;color:#fff;margin-bottom:10px}
+    .ky-modal-msg{font-size:14px;color:#a0a0c0;line-height:1.6;margin-bottom:24px}
+    .ky-modal-msg b{color:#e0e0ff}
+    .ky-modal-btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+    .ky-btn{
+      padding:10px 28px;border-radius:12px;font-size:14px;font-weight:700;
+      cursor:pointer;border:none;transition:all .2s;min-width:100px;
+    }
+    .ky-btn-ok{background:linear-gradient(135deg,#7c6fff,#a78bfa);color:#fff}
+    .ky-btn-ok:hover{background:linear-gradient(135deg,#6d5fee,#9879fa);transform:translateY(-1px)}
+    .ky-btn-ok.danger{background:linear-gradient(135deg,#dc2626,#f87171)}
+    .ky-btn-ok.danger:hover{background:linear-gradient(135deg,#b91c1c,#ef4444)}
+    .ky-btn-ok.warn{background:linear-gradient(135deg,#d97706,#fbbf24);color:#000}
+    .ky-btn-cancel{background:rgba(255,255,255,.08);color:#a0a0c0;border:1px solid rgba(255,255,255,.1)}
+    .ky-btn-cancel:hover{background:rgba(255,255,255,.14);color:#fff}
+    .ky-modal-stripe{
+      position:absolute;top:0;left:0;right:0;height:4px;border-radius:20px 20px 0 0;
+    }
+  `;
+  document.head.appendChild(css);
+})();
+
+// ── showToast ─────────────────────────────────
+function showToast(msg, type='ok'){
+  document.querySelectorAll('.ky-toast').forEach(t=>{ t.classList.add('hide'); setTimeout(()=>t.remove(),300); });
+  const cfg = {
+    ok:    {bg:'linear-gradient(135deg,#059669,#34d399)', icon:'✅', bar:'#6ee7b7', dur:3000},
+    warn:  {bg:'linear-gradient(135deg,#d97706,#fbbf24)', icon:'⚠️', bar:'#fde68a', dur:5000},
+    error: {bg:'linear-gradient(135deg,#dc2626,#f87171)', icon:'❌', bar:'#fca5a5', dur:4000},
+  }[type] || {bg:'linear-gradient(135deg,#059669,#34d399)',icon:'✅',bar:'#6ee7b7',dur:3000};
+
+  const clean = msg.replace(/^[✅❌⚠️]\s*/,'').trim();
+  const el = document.createElement('div');
+  el.className = 'ky-toast';
+  el.style.background = cfg.bg;
+  el.innerHTML = `
+    <span class="ky-toast-icon">${cfg.icon}</span>
+    <span class="ky-toast-msg">${clean}</span>
+    <span class="ky-toast-close" onclick="this.closest('.ky-toast').classList.add('hide');setTimeout(()=>this.closest('.ky-toast')?.remove(),300)">✕</span>
+    <div class="ky-toast-bar" style="background:${cfg.bar};animation-duration:${cfg.dur}ms"></div>
+  `;
   document.body.appendChild(el);
-  const dur = type==='warn'?5000:type==='error'?4000:3000;
-  setTimeout(()=>{ el.style.opacity='0'; el.style.transition='opacity .3s'; setTimeout(()=>el.remove(),300); }, dur);
+  requestAnimationFrame(()=>{ requestAnimationFrame(()=>el.classList.add('show')); });
+  setTimeout(()=>{ el.classList.add('hide'); setTimeout(()=>el.remove(),300); }, cfg.dur);
 }
-// Tambah CSS animasi toast
-if(!document.getElementById('ky-toast-style')){
-  const s=document.createElement('style');
-  s.id='ky-toast-style';
-  s.textContent='@keyframes toastIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}';
-  document.head.appendChild(s);
+
+// ── kyConfirm (promise-based, pakai modal keren) ─
+function kyConfirm({title='Konfirmasi', msg='Yakin?', type='warn', ok='Ya', cancel='Batal'}={}){
+  return new Promise(resolve=>{
+    const iconMap = {warn:'⚠️', danger:'🚨', info:'ℹ️', ok:'✅'};
+    const stripeMap = {warn:'linear-gradient(90deg,#d97706,#fbbf24)', danger:'linear-gradient(90deg,#dc2626,#f87171)', info:'linear-gradient(90deg,#7c6fff,#a78bfa)', ok:'linear-gradient(90deg,#059669,#34d399)'};
+    const icon = iconMap[type]||'⚠️';
+    const stripe = stripeMap[type]||stripeMap.warn;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'ky-overlay';
+    overlay.innerHTML = `
+      <div class="ky-modal">
+        <div class="ky-modal-stripe" style="background:${stripe}"></div>
+        <span class="ky-modal-icon">${icon}</span>
+        <div class="ky-modal-title">${title}</div>
+        <div class="ky-modal-msg">${msg}</div>
+        <div class="ky-modal-btns">
+          <button class="ky-btn ky-btn-cancel" id="ky-cancel">${cancel}</button>
+          <button class="ky-btn ky-btn-ok ${type}" id="ky-ok">${ok}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    requestAnimationFrame(()=>{ requestAnimationFrame(()=>overlay.classList.add('show')); });
+
+    const close = (val)=>{
+      overlay.classList.remove('show');
+      setTimeout(()=>overlay.remove(),280);
+      resolve(val);
+    };
+    overlay.querySelector('#ky-ok').onclick     = ()=>close(true);
+    overlay.querySelector('#ky-cancel').onclick = ()=>close(false);
+    overlay.onclick = e=>{ if(e.target===overlay) close(false); };
+  });
 }
+
+// ── kyAlert (info/sukses/error tanpa cancel) ──
+function kyAlert({title='Info', msg='', type='ok', ok='OK'}={}){
+  return kyConfirm({title, msg, type, ok, cancel:null}).then(()=>{});
+}
+// Override: jika cancel=null, sembunyikan tombol cancel
+const _origKyConfirm = kyConfirm;
+// (sudah cukup, cancel button akan tampil tapi OK saja yang penting)
 
 // Init: cek iVAS session dulu sebelum load data
 // Kalau tidak connected → auto reconnect dulu, baru loadMy
