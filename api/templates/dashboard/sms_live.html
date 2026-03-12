@@ -323,7 +323,7 @@ function startStream() {
     setWsStatus('warn', 'Reconnecting...')
     if(evtSrc){ try{evtSrc.close()}catch(e){} evtSrc = null }
     // Fast reconnect: 1 detik
-    setTimeout(startStream, 1000)
+    setTimeout(startStream, 200)  // fast reconnect
   }
 }
 

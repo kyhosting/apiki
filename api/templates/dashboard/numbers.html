@@ -200,7 +200,7 @@ async function _triggerReconnect() {
     if (d.status === 'ok') {
       showToast('✅ iVAS reconnect berhasil! Memuat ulang data...', 'ok')
       // Reload data setelah reconnect sukses
-      setTimeout(() => { loadMy(); if(_testLoaded) loadTest(); }, 800)
+      loadMy(); if(_testLoaded) loadTest();
     } else if (d.need_login) {
       showToast('❌ Belum set kredensial iVAS. Pergi ke halaman Login iVAS.', 'error')
       setTimeout(() => { window.location.href = '/dashboard/ivas-login' }, 2000)
@@ -239,8 +239,8 @@ let _testData=[], _testPage=1, _testPS=20;
 let _selIds=new Set(), _testLoaded=false;
 let _myTimer=null, _testTimer=null;
 
-function debounceMy(){ clearTimeout(_myTimer); _myTimer=setTimeout(loadMy,600); }
-function debounceTest(){ clearTimeout(_testTimer); _testTimer=setTimeout(loadTest,600); }
+function debounceMy(){ clearTimeout(_myTimer); _myTimer=setTimeout(loadMy,250); }
+function debounceTest(){ clearTimeout(_testTimer); _testTimer=setTimeout(loadTest,250); }
 
 function switchTab(t){
   document.getElementById('tab-my').classList.toggle('active',t==='my');
@@ -274,7 +274,7 @@ async function loadMy(){
   try{
     // FIX: tambah AbortController timeout 30 detik supaya tidak stuck selamanya
     const ctrl = new AbortController()
-    const tid = setTimeout(() => ctrl.abort(), 30000)
+    const tid = setTimeout(() => ctrl.abort(), 15000)
     let d;
     try {
       d = await _apiFetch(`/api/numbers/my-list?search=${encodeURIComponent(s)}&limit=${lim}`, {signal: ctrl.signal});
@@ -399,18 +399,18 @@ async function bulkReturn(){
   const btn = document.getElementById('bulk-del-btn');
   btn.disabled = true;
   btn.textContent = '⏳ Returning...';
+  // Parallel — semua request sekaligus, no delay, no sleep
+  const results = await Promise.allSettled(
+    [..._selIds].map(tid =>
+      _apiFetch(`/api/numbers/delete?termination_id=${tid}`,{method:'POST'})
+    )
+  );
   let ok=0, fail=0;
-  // Kirim satu per satu dengan delay kecil agar tidak spam
-  for(const tid of _selIds){
-    try{
-      const d = await _apiFetch(`/api/numbers/delete?termination_id=${tid}`,{method:'POST'});
-      if(d && (d.success===true || d.status==='ok')) ok++;
-      else fail++;
-    } catch{ fail++; }
-    // Kecil delay antar request
-    await new Promise(r=>setTimeout(r,200));
-  }
-  showToast(`✅ Return selesai: ${ok} berhasil${fail>0?', '+fail+' gagal':''}`, ok>0?'ok':'error');
+  results.forEach(r => {
+    if(r.status==='fulfilled' && r.value && (r.value.success===true||r.value.status==='ok')) ok++;
+    else fail++;
+  });
+  showToast(`Return selesai: ${ok} berhasil${fail>0?', '+fail+' gagal':''}`, ok>0?'ok':'error');
   _selIds.clear();
   btn.disabled = false;
   btn.style.display = 'none';
@@ -459,7 +459,7 @@ async function loadTest(){
   body.innerHTML='<tr><td colspan="8" class="iv-empty"><div class="spin" style="margin:0 auto 8px"></div>Memuat Test Numbers dari iVAS...</td></tr>';
   try{
     const ctrl = new AbortController()
-    const tid = setTimeout(() => ctrl.abort(), 30000)
+    const tid = setTimeout(() => ctrl.abort(), 15000)
     let d;
     try {
       d = await _apiFetch(`/api/numbers/test-list?search=${encodeURIComponent(s)}&limit=${lim}`, {signal: ctrl.signal});
@@ -521,7 +521,7 @@ function renderTest(){
   pg.style.display='';
 }
 
-async function addNum(tid,num,btn){
+async async function addNum(tid,num,btn){
   if(!tid) return showToast('Termination ID tidak tersedia','error');
   btn.disabled=true; btn.textContent='⏳';
   try{
@@ -562,7 +562,7 @@ async function modalAddNumber(){
     const d=await _apiFetch(`/api/numbers/add?termination_id=${_mTermId}`,{method:'POST'});
     if(!d){ btn.disabled=false; btn.textContent='➕ Add Number'; return; }
     const ok = (d.success===true || d.status==='ok');
-    if(ok){ showToast('✅ Nomor '+(_mTestNum||'')+' berhasil ditambahkan!','ok'); btn.textContent='✅ Added!'; setTimeout(closeModal,1200); }
+    if(ok){ showToast('✅ Nomor '+(_mTestNum||'')+' berhasil ditambahkan!','ok'); btn.textContent='✅ Added!'; setTimeout(closeModal,300); }
     else{ showToast('❌ '+(d.message||d.error||'Gagal menambahkan nomor'),'error'); btn.disabled=false; btn.textContent='➕ Add Number'; }
   }catch(e){ showToast('Error: '+e.message,'error'); btn.disabled=false; btn.textContent='➕ Add Number'; }
 }

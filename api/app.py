@@ -146,7 +146,7 @@ _ivas_lock = threading.Lock()
 # CSRF cache — hindari GET ke iVAS tiap request
 _csrf_cache: dict = {}
 _csrf_cache_lock  = threading.Lock()
-_CSRF_CACHE_TTL   = 25  # detik
+_CSRF_CACHE_TTL   = 90  # detik — cache lebih lama, kurangi scrape berulang
 
 # WebSocket cache per user_id
 _ws_live:   dict = {}   # user_id → deque(sms) dari /livesms namespace
@@ -213,7 +213,7 @@ def _scrape_csrf_direct(scraper, page_url):
         r = scraper.get(page_url, headers={
             "Accept": "text/html,application/xhtml+xml,*/*;q=0.9",
             "Referer": IVAS_BASE,
-        }, timeout=15, allow_redirects=True)
+        }, timeout=5, allow_redirects=True)
         if "/login" in r.url or r.status_code in (401, 403):
             return None
         html = decode_resp(r)
@@ -417,7 +417,7 @@ def do_ivas(user_id, method, url, data=None, headers=None):
             data["_token"] = sess["csrf"]
 
         try:
-            kw = dict(headers=headers, timeout=10, allow_redirects=True)
+            kw = dict(headers=headers, timeout=8, allow_redirects=True)
             if method.upper() == "POST":
                 r = scraper.post(url, data=data, **kw)
             else:
@@ -1058,7 +1058,7 @@ def _ws_start_test(user_id: int):
 
                 sio = _build_test_ws_client(user_id, jwt_tok)
                 if not sio:
-                    time.sleep(1); continue
+                    continue
 
                 with _ws_lock:
                     old_sio = _ws_clients.get(user_id)
@@ -1110,13 +1110,13 @@ def _ws_start_test(user_id: int):
                 # Auth error = session expired -> force re-login
                 if any(k in err_str.lower() for k in ("403","401","unauthorized","expired","token")):
                     with _ivas_lock: _ivas_sessions.pop(user_id, None)
-                time.sleep(min(consecutive_fail, 3))
+                time.sleep(min(consecutive_fail * 0.2, 0.5))  # max 0.5s backoff
 
             except Exception as e:
                 consecutive_fail += 1
                 logger.error(f"[WS-TEST] user={user_id} error ({consecutive_fail}): {e}")
                 _ws_set_status(user_id, connected=False, error=str(e))
-                time.sleep(min(consecutive_fail, 3))
+                time.sleep(min(consecutive_fail * 0.2, 0.5))  # max 0.5s backoff
 
         logger.info(f"[WS-TEST] user={user_id} thread stopped")
     t = threading.Thread(target=_run, name=f"ws-test-{user_id}", daemon=True)
@@ -1206,7 +1206,7 @@ def _ws_start_live(user_id: int):
                 sio = _build_live_ws_client(user_id, jwt_tok, user_hash, livesms_event)
                 if not sio:
                     logger.error(f"[WS-LIVE] user={user_id} gagal build client, retry 1s...")
-                    time.sleep(1); continue
+                    continue
 
                 with _ws_lock:
                     old_sio = _ws_live_clients.get(user_id)
@@ -1267,13 +1267,13 @@ def _ws_start_live(user_id: int):
                     with _ivas_lock: _ivas_sessions.pop(user_id, None)
 
                 # Fast retry: max 3s
-                time.sleep(min(consecutive_fail, 3))
+                time.sleep(min(consecutive_fail * 0.2, 0.5))  # max 0.5s backoff
 
             except Exception as e:
                 consecutive_fail += 1
                 logger.error(f"[WS-LIVE] user={user_id} error ({consecutive_fail}): {e}")
                 _ws_set_status(user_id, live_connected=False, live_error=str(e))
-                time.sleep(min(consecutive_fail, 3))
+                time.sleep(min(consecutive_fail * 0.2, 0.5))  # max 0.5s backoff
 
         logger.info(f"[WS-LIVE] user={user_id} thread stopped")
     t = threading.Thread(target=_run, name=f"ws-live-{user_id}", daemon=True)
