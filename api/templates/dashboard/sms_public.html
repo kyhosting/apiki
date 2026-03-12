@@ -215,7 +215,7 @@ function startStream() {
     evtSrc = null
     // FIX: cancel timer lama sebelum buat yang baru
     if (_reconnectTimer) { clearTimeout(_reconnectTimer); _reconnectTimer = null }
-    _reconnectTimer = setTimeout(() => { _reconnectTimer = null; startStream() }, 3000)
+    _reconnectTimer = setTimeout(() => { _reconnectTimer = null; startStream() }, 1000)
   }
 }
 
@@ -247,7 +247,11 @@ fetchNow()
 startStream()
 
 // Auto refresh tiap 30 detik — simpan referensi biar bisa di-clear
-_refreshInterval = setInterval(fetchNow, 30000)
+_refreshInterval = setInterval(()=>{
+  if(!evtSrc || evtSrc.readyState === EventSource.CLOSED){
+    fetchNow();
+  }
+}, 30000)
 
 // FIX: cleanup SEMUA resources saat pindah halaman — cegah page hang/lock
 function _cleanup() {

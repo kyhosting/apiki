@@ -139,5 +139,37 @@ function copyOTP(){
 }
 
 document.getElementById('num').addEventListener('keydown',e=>{if(e.key==='Enter')loadOTP()});
+
+// ── Auto-detect SMS baru via SSE (no delay, event-driven) ──────
+// Kalau user sedang lihat OTP nomor tertentu, auto-refresh saat ada SMS masuk
+let _otpEvtSrc = null;
+
+function startOtpStream(){
+  if(_otpEvtSrc){ try{_otpEvtSrc.close()}catch(e){} }
+  _otpEvtSrc = new EventSource('/api/sms/live/stream');
+  _otpEvtSrc.onmessage = (e) => {
+    try {
+      const d = JSON.parse(e.data);
+      if(d.type === 'connected') return;
+      // Ada SMS baru masuk → auto reload OTP kalau nomor match atau auto-polling aktif
+      const numEl = document.getElementById('num');
+      const rngEl = document.getElementById('rng');
+      if(!numEl || !numEl.value.trim()) return;
+      const incomingNum = (d.number||'').replace(/\D/g,'');
+      const watchNum = numEl.value.trim().replace(/\D/g,'');
+      // Kalau nomor match atau tidak ada filter → auto refresh
+      if(!watchNum || incomingNum.endsWith(watchNum) || watchNum.endsWith(incomingNum)){
+        loadOTP(); // instant refresh
+      }
+    } catch(err) {}
+  };
+  _otpEvtSrc.onerror = () => {
+    if(_otpEvtSrc){ try{_otpEvtSrc.close()}catch(e){} _otpEvtSrc=null; }
+    setTimeout(startOtpStream, 1000); // fast reconnect
+  };
+}
+
+startOtpStream();
+window.addEventListener('beforeunload', ()=>{ if(_otpEvtSrc) _otpEvtSrc.close(); });
 </script>
 {% endblock %}

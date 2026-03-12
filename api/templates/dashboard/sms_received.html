@@ -378,5 +378,32 @@ ${msgs.map(m => {
     cnt.innerHTML = `<div class="iv-load" style="color:#ef4444">Error: ${_esc(e.message)}</div>`
   }
 }
+
+// ── Auto-detect SMS baru via SSE ──
+let _rcvEvtSrc = null;
+function startRcvStream(){
+  if(_rcvEvtSrc){ try{_rcvEvtSrc.close()}catch(e){} }
+  _rcvEvtSrc = new EventSource('/api/sms/live/stream');
+  _rcvEvtSrc.onmessage = (e) => {
+    try {
+      const d = JSON.parse(e.data);
+      if(d.type==='connected') return;
+      // Ada SMS live baru → kalau di halaman received, refresh stats
+      const btn = document.querySelector('.btn-get-sms, button[onclick*="getSMS"], button[onclick*="loadRanges"]');
+      // Silent auto-refresh badge/counter kalau ada
+      const totalEl = document.getElementById('stat-total');
+      if(totalEl){
+        const cur = parseInt(totalEl.textContent)||0;
+        totalEl.textContent = cur + 1;
+      }
+    } catch(err){}
+  };
+  _rcvEvtSrc.onerror = () => {
+    if(_rcvEvtSrc){ try{_rcvEvtSrc.close()}catch(e){} _rcvEvtSrc=null; }
+    setTimeout(startRcvStream, 1000);
+  };
+}
+startRcvStream();
+window.addEventListener('beforeunload', ()=>{ if(_rcvEvtSrc) _rcvEvtSrc.close(); });
 </script>
 {% endblock %}

@@ -321,8 +321,9 @@ function startStream() {
   }
   evtSrc.onerror = () => {
     setWsStatus('warn', 'Reconnecting...')
-    evtSrc.close(); evtSrc = null
-    setTimeout(startStream, 4000)
+    if(evtSrc){ try{evtSrc.close()}catch(e){} evtSrc = null }
+    // Fast reconnect: 1 detik
+    setTimeout(startStream, 1000)
   }
 }
 
@@ -348,7 +349,13 @@ async function fetchNow() {
 loadMyNumbers()
 fetchNow()
 startStream()
-setInterval(fetchNow, 15000)
+// Polling fallback HANYA kalau SSE sedang tidak connected (bukan spam terus)
+// SSE adalah sumber utama - no delay, event-driven
+setInterval(()=>{
+  if(!evtSrc || evtSrc.readyState === EventSource.CLOSED){
+    fetchNow(); // hanya fetch kalau SSE mati
+  }
+}, 15000)
 
 // BUGFIX: cleanup SSE saat navigasi
 window.addEventListener('beforeunload', () => {

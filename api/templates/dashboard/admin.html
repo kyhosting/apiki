@@ -395,13 +395,30 @@ async function deleteUser(uid,uname){
 }
 
 // ── Init ───────────────────────────────────────────
-loadWaStatus()
-loadQR()
-setInterval(loadWaStatus, 15000)
-// Auto refresh QR tiap 25 detik kalau QR sedang ditampilkan
+// Anti-spam: WA status check tiap 30 detik (bukan 15)
+// QR polling HANYA jalan kalau WA belum connected
+let _waConnected = false;
+
+async function loadWaStatusSafe(){
+  await loadWaStatus();
+  // Cek badge status — kalau connected, stop QR polling
+  const badge = document.getElementById('wa-badge');
+  if(badge && badge.textContent.includes('Connected')){
+    _waConnected = true;
+  }
+}
+
+loadWaStatus();
+loadQR();
+
+// Status check tiap 30 detik
+setInterval(loadWaStatusSafe, 30000);
+
+// QR refresh tiap 30 detik — HANYA kalau WA belum connected dan QR sedang tampil
 setInterval(()=>{
-  const img = document.getElementById('qr-img')
-  if (img && img.style.display !== 'none') loadQR()
-}, 25000)
+  if(_waConnected) return; // WA sudah connected, skip
+  const img = document.getElementById('qr-img');
+  if(img && img.style.display !== 'none') loadQR();
+}, 30000);
 </script>
 {% endblock %}

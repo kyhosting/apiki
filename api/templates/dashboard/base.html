@@ -159,15 +159,21 @@
 function openSb(){document.getElementById('sb').classList.add('open');document.getElementById('ov').classList.add('show')}
 function closeSb(){document.getElementById('sb').classList.remove('open');document.getElementById('ov').classList.remove('show')}
 
-// ── iVAS Auto-Reconnect Heartbeat ──────────────────────────────
+// ── iVAS Status Heartbeat ──────────────────────────────────────
+// Anti-spam: 
+//   - Heartbeat tiap 20 detik (bukan 8)
+//   - Auto-reconnect hanya SEKALI lalu tunggu 60 detik sebelum retry
+//   - Kalau need_login (belum ada kredensial) → STOP, jangan retry sama sekali
 let _ivasReconnecting = false;
+let _ivasNoCredentials = false; // flag: belum ada kredensial, jangan retry
+let _reconnectFailCount = 0;
 
 async function pollIvasStatus(){
-  try {
-    // Gunakan /api/session/check sebagai heartbeat utama
-    const r = await fetch('/api/session/check');
+  // Kalau belum ada kredensial iVAS sama sekali → skip polling auto-reconnect
+  if(_ivasNoCredentials) return;
 
-    // 401 = Flask session expired → redirect ke login
+  try {
+    const r = await fetch('/api/session/check');
     if(r.status === 401){
       toast('Session expired. Redirecting...','err');
       setTimeout(()=>{ window.location.href='/login'; }, 1500);
@@ -190,8 +196,8 @@ async function pollIvasStatus(){
       em.textContent= d.ivas_email ? d.ivas_email.split('@')[0] : '';
       if(pill){pill.textContent='✓';pill.style.display='inline-block';}
       _ivasReconnecting = false;
+      _reconnectFailCount = 0;
 
-      // WS indicator
       const wsOk = d.ws_test_connected || d.ws_live_connected;
       wsInd.innerHTML = wsOk
         ? `<span class="dot dot-green" style="margin-right:4px"></span><span style="color:var(--green);font-size:11px">WS Live</span>`
@@ -206,50 +212,61 @@ async function pollIvasStatus(){
       }
 
     } else {
-      // iVAS disconnected → coba auto reconnect (sekali, tidak loop spam)
       dot.className='dot dot-red dot-pulse';
-      lbl.textContent='iVAS: Reconnecting...';
-      em.textContent='Auto reconnect...';
       if(pill) pill.style.display='none';
       wsInd.textContent='';
 
+      // Anti-spam: hanya coba reconnect kalau flag bebas
       if(!_ivasReconnecting){
         _ivasReconnecting = true;
+        lbl.textContent='iVAS: Reconnecting...';
+        em.textContent='Sedang coba reconnect...';
+
         try {
           const rc = await fetch('/api/ivas/auto-reconnect', {method:'POST'});
           const rd = await rc.json().catch(()=>null);
+
           if(rd && rd.status==='ok'){
             lbl.textContent='iVAS: Connected';
             dot.className='dot dot-green';
             em.textContent = rd.email ? rd.email.split('@')[0] : 'OK';
             toast('iVAS reconnect berhasil ✓','ok');
             _ivasReconnecting = false;
+            _reconnectFailCount = 0;
+
           } else if(rd && rd.need_login){
-            // Belum ada kredensial tersimpan
-            lbl.textContent='iVAS: Disconnected';
-            dot.className='dot dot-red dot-pulse';
-            em.textContent='Klik untuk login';
+            // Belum ada kredensial → STOP, jangan spam terus
+            _ivasNoCredentials = true;
             _ivasReconnecting = false;
+            lbl.textContent='iVAS: Disconnected';
+            dot.className='dot dot-red';
+            em.textContent='Login iVAS dulu';
+
           } else {
-            lbl.textContent='iVAS: Reconnect gagal';
-            em.textContent='Retry dalam 30s...';
-            // Reset flag setelah 30 detik biar coba lagi
-            setTimeout(()=>{ _ivasReconnecting = false; }, 30000);
+            // Gagal reconnect → backoff: makin lama makin jarang retry
+            _reconnectFailCount++;
+            const backoff = Math.min(60000 * _reconnectFailCount, 300000); // max 5 menit
+            lbl.textContent='iVAS: Disconnected';
+            em.textContent=`Retry dalam ${Math.round(backoff/1000)}s...`;
+            setTimeout(()=>{ _ivasReconnecting = false; }, backoff);
           }
         } catch(e){
           _ivasReconnecting = false;
         }
+      } else {
+        // Sedang dalam proses reconnect / cooldown
+        lbl.textContent='iVAS: Disconnected';
+        em.textContent='Menunggu reconnect...';
       }
     }
-  } catch(e){
-    // Network error — jangan crash
+  } catch(e) {
     console.warn('[heartbeat] error:', e);
   }
 }
 
-// Mulai heartbeat: langsung + setiap 8 detik
+// Heartbeat tiap 20 detik (bukan 8) — cukup untuk deteksi disconnect
 pollIvasStatus();
-setInterval(pollIvasStatus, 8000);
+setInterval(pollIvasStatus, 20000);
 </script>
 {% block scripts %}{% endblock %}
 {% endblock %}
