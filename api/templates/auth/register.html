@@ -17,11 +17,7 @@
   <div class="form-group">
     <label class="form-label">Email</label>
     <input type="email" name="email" class="form-input" placeholder="email@kamu.com" required/>
-  </div>
-  <div class="form-group">
-    <label class="form-label">Nomor WhatsApp</label>
-    <input type="text" name="nomor_wa" class="form-input" placeholder="Contoh: 6281234567890" required/>
-    <div class="form-hint">Format internasional tanpa +. OTP verifikasi dikirim ke sini.</div>
+    <div class="form-hint">✉️ Kode OTP verifikasi akan dikirim ke email ini.</div>
   </div>
   <div class="form-group">
     <label class="form-label">Password</label>
@@ -38,7 +34,7 @@
     </div>
     <div id="pmatch" class="form-hint" style="display:none"></div>
   </div>
-  <button type="submit" class="btn-auth" id="B">Daftar &amp; Kirim OTP WhatsApp</button>
+  <button type="submit" class="btn-auth" id="B">Daftar &amp; Kirim OTP Email</button>
 </form>
 <div class="auth-footer" style="margin-top:14px">Sudah punya akun? <a href="/login">Masuk</a></div>
 <script>
@@ -53,7 +49,7 @@ p2.addEventListener('input',()=>{
 document.getElementById('F').onsubmit=function(e){
   const p1=document.getElementById('pw1');
   if(p1.value!==p2.value){e.preventDefault();return}
-  const b=document.getElementById('B');b.disabled=true;b.innerHTML='<span class="spin"></span> Mengirim OTP...';
+  const b=document.getElementById('B');b.disabled=true;b.innerHTML='<span class="spin"></span> Mengirim OTP ke Email...';
 };
 </script>
 {% endblock %}

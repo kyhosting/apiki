@@ -100,7 +100,7 @@ def init_db():
         username    TEXT UNIQUE NOT NULL,
         nama        TEXT NOT NULL,
         email       TEXT UNIQUE NOT NULL,
-        nomor_wa    TEXT NOT NULL,
+        nomor_wa    TEXT DEFAULT '',
         password    TEXT NOT NULL,
         role        TEXT DEFAULT 'user',
         api_key     TEXT UNIQUE,
@@ -1626,18 +1626,17 @@ def pg_register():
     if request.method == "POST":
         username  = request.form.get("username","").strip()
         nama      = request.form.get("nama","").strip()
-        email     = request.form.get("email","").strip()
-        nomor_wa  = request.form.get("nomor_wa","").strip()
+        email     = request.form.get("email","").strip().lower()
         password  = request.form.get("password","").strip()
         password2 = request.form.get("password2","").strip()
-        if not all([username,nama,email,nomor_wa,password,password2]):
+        if not all([username,nama,email,password,password2]):
             err = "Semua kolom wajib diisi."
         elif password != password2: err = "Password tidak cocok."
         elif len(password) < 8: err = "Password minimal 8 karakter."
         elif not re.match(r"^[a-zA-Z0-9_]{3,20}$", username):
             err = "Username 3-20 karakter, hanya huruf, angka, underscore."
-        elif not re.match(r"^\d{10,15}$", nomor_wa.replace("+","")):
-            err = "Format nomor WA tidak valid. Contoh: 6281234567890"
+        elif not re.match(r"^[^@]+@[^@]+\.[^@]+$", email):
+            err = "Format email tidak valid."
         else:
             c = db()
             if c.execute("SELECT id FROM ky_users WHERE username=?",(username,)).fetchone():
@@ -1654,9 +1653,12 @@ def pg_register():
             c.execute("""INSERT INTO ky_users
                 (username,nama,email,nomor_wa,password,api_key,otp_code,otp_expires,otp_type)
                 VALUES(?,?,?,?,?,?,?,?,?)""",
-                (username,nama,email,nomor_wa,ph,akey,otp,exp,"register"))
+                (username,nama,email,"",ph,akey,otp,exp,"register"))
             c.commit(); c.close()
-            send_otp(nomor_wa, email, otp, nama)
+            # Kirim OTP via Email otomatis
+            ok_send, msg_send = send_otp_email(email, otp, nama)
+            if not ok_send:
+                logger.error(f"[REGISTER] Gagal kirim OTP email ke {email}: {msg_send}")
             session["pending_verify"] = username
             return redirect(url_for("pg_verify_otp"))
     return render_template("auth/register.html", error=err)
@@ -1685,8 +1687,8 @@ def pg_resend_otp():
     if not u: return jsonify({"status":"error","message":"Akun tidak ditemukan"}), 404
     otp = _gen_otp(); exp = (datetime.now()+timedelta(minutes=5)).isoformat()
     c = db(); c.execute("UPDATE ky_users SET otp_code=?,otp_expires=? WHERE username=?",(otp,exp,uname)); c.commit(); c.close()
-    ok, msg = send_otp(u["nomor_wa"], u["email"], otp, u["nama"])
-    return jsonify({"status":"ok","message":msg})
+    ok, msg = send_otp_email(u["email"], otp, u["nama"])
+    return jsonify({"status":"ok" if ok else "error","message":msg})
 
 @app.route("/forgot-password", methods=["GET","POST"])
 def pg_forgot():
@@ -1698,7 +1700,7 @@ def pg_forgot():
         else:
             otp = _gen_otp(); exp = (datetime.now()+timedelta(minutes=5)).isoformat()
             c = db(); c.execute("UPDATE ky_users SET otp_code=?,otp_expires=?,otp_type='reset' WHERE id=?",(otp,exp,u["id"])); c.commit(); c.close()
-            send_otp(u["nomor_wa"], u["email"], otp, u["nama"])
+            send_otp_email(u["email"], otp, u["nama"])
             session["reset_uid"] = u["id"]; sent = True
     return render_template("auth/forgot.html", error=err, sent=sent)
 
@@ -2581,7 +2583,7 @@ def api_admin_wa_test_otp():
     if not nomor:
         return jsonify({"status":"error","message":"Nomor wajib diisi"}), 400
     otp = _gen_otp()
-    ok, msg = send_otp(nomor, "", otp, "Test Admin")
+    ok, msg = send_otp_email(SMTP_USER or "admin@kyshiro.dev", otp, "Test Admin")
     return jsonify({"status":"ok" if ok else "error","message":msg,"otp": otp if ok else None})
 
 # ─── Health ───────────────────────────────────────────────────────

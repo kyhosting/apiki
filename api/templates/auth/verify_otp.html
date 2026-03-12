@@ -7,12 +7,13 @@
   <a href="/login" class="btn-auth" style="display:block;text-align:center">Masuk Sekarang</a>
 {% else %}
   <div class="auth-title">Verifikasi OTP</div>
-  <div class="auth-sub">Kode OTP 6 digit dikirim ke WhatsApp kamu. Berlaku 5 menit.</div>
+  <div class="auth-sub">✉️ Kode OTP 6 digit dikirim ke <strong>email</strong> kamu. Berlaku 5 menit.</div>
   {% if error %}<div class="alert alert-err">✗ {{ error }}</div>{% endif %}
   <form method="POST" id="F">
     <div class="form-group">
       <label class="form-label">Kode OTP</label>
       <input type="text" name="otp" class="form-input otp-input" placeholder="000000" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" autocomplete="one-time-code" required autofocus/>
+      <div class="form-hint">Cek inbox & folder spam email kamu.</div>
     </div>
     <button type="submit" class="btn-auth" id="B">Verifikasi</button>
   </form>
@@ -30,9 +31,15 @@ if(rb&&cdEl){
   const iv=setInterval(()=>{sec--;cdEl.textContent=` (${sec}s)`;if(sec<=0){clearInterval(iv);cdEl.textContent='';rb.style.opacity='';rb.style.pointerEvents=''}},1000);
   rb.onclick=async(e)=>{
     e.preventDefault();rb.style.opacity='.4';rb.style.pointerEvents='none';
+    rb.textContent='Mengirim...';
     const r=await fetch('/resend-otp',{method:'POST',body:new URLSearchParams({username:'{{ username }}'})});
     const d=await r.json();
-    toast(d.message,d.status==='ok'?'ok':'err');
+    rb.textContent='Kirim ulang';
+    if(d.status==='ok'){
+      // Tampilkan info sukses
+      const sub=document.querySelector('.auth-sub');
+      if(sub){sub.style.color='var(--green)';sub.textContent='✅ OTP baru sudah dikirim ke email kamu!';}
+    }
     sec=60;const iv2=setInterval(()=>{sec--;cdEl.textContent=` (${sec}s)`;if(sec<=0){clearInterval(iv2);cdEl.textContent='';rb.style.opacity='';rb.style.pointerEvents=''}},1000);
   };
 }

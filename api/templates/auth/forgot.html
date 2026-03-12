@@ -2,10 +2,10 @@
 {% block auth_title %}Lupa Password{% endblock %}
 {% block auth_body %}
 <div class="auth-title">Lupa Password?</div>
-<div class="auth-sub">Masukkan username atau email. OTP reset dikirim ke WhatsApp.</div>
+<div class="auth-sub">Masukkan username atau email. OTP reset dikirim ke email.</div>
 {% if error %}<div class="alert alert-err">✗ {{ error }}</div>{% endif %}
 {% if sent %}
-  <div class="alert alert-ok">✓ OTP berhasil dikirim ke WhatsApp kamu.</div>
+  <div class="alert alert-ok">✓ OTP berhasil dikirim ke email kamu. Cek inbox & folder spam.</div>
   <a href="/reset-password" class="btn-auth" style="display:block;text-align:center">Lanjut Reset Password →</a>
 {% else %}
   <form method="POST" id="F">
@@ -13,13 +13,13 @@
       <label class="form-label">Username atau Email</label>
       <input type="text" name="identifier" class="form-input" placeholder="Username atau email terdaftar" required autofocus/>
     </div>
-    <button type="submit" class="btn-auth" id="B">Kirim OTP via WhatsApp</button>
+    <button type="submit" class="btn-auth" id="B">Kirim OTP via Email</button>
   </form>
 {% endif %}
 <div class="auth-footer" style="margin-top:14px"><a href="/login">← Kembali masuk</a></div>
 <script>
 document.getElementById('F')?.addEventListener('submit',function(){
-  const b=document.getElementById('B');b.disabled=true;b.innerHTML='<span class="spin"></span> Mengirim...';
+  const b=document.getElementById('B');b.disabled=true;b.innerHTML='<span class="spin"></span> Mengirim OTP ke email...';
 });
 </script>
 {% endblock %}
