@@ -13,9 +13,7 @@ from collections import deque
 from bs4 import BeautifulSoup
 import threading, time, re, os, json, hashlib, secrets, sqlite3
 import logging, gzip, random, html as html_lib, requests as req_lib
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
+# email via Resend API (HTTP) — tidak perlu smtplib
 
 # Socket.IO — untuk WebSocket iVAS real-time
 try:
@@ -1290,13 +1288,12 @@ def _log_api(user_id, endpoint, method, ip, status):
 WA_URL   = os.getenv("WA_BOT_URL","http://localhost:3001")
 WA_TOKEN = os.getenv("WA_BOT_TOKEN","kyshiro-wa-secret")
 
-# ── Email / SMTP Config ──────────────────────────────────────────
-SMTP_HOST     = os.getenv("SMTP_HOST",     "smtp.gmail.com")
-SMTP_PORT     = int(os.getenv("SMTP_PORT", "587"))
-SMTP_USER     = os.getenv("SMTP_USER",     "kicenofficial@gmail.com")
-SMTP_PASS     = os.getenv("SMTP_PASS",     "yszm tsnz jxek pkpr")
-SMTP_FROM     = os.getenv("SMTP_FROM",     "KY-SHIRO OFFICIAL")
-SMTP_ENABLED  = bool(SMTP_USER and SMTP_PASS)
+# ── Email via Resend API (HTTP, tidak diblokir Railway) ─────────
+# Daftar gratis: https://resend.com → API Keys → buat key
+# Gmail sender: perlu verifikasi domain ATAU pakai onboarding@resend.dev dulu untuk test
+RESEND_API_KEY  = os.getenv("RESEND_API_KEY", "re_ekEJRvRp_8w9W1vH2K8n9XTuu4tDMgbBR")
+RESEND_FROM     = os.getenv("RESEND_FROM",    "KY-SHIRO OFFICIAL <onboarding@resend.dev>")
+EMAIL_ENABLED   = bool(RESEND_API_KEY)
 
 # ── Telegram Bot Notifikasi ──────────────────────────────────────
 TG_BOT_URL    = os.getenv("TG_BOT_URL","")      # URL service tg-bot di Railway
@@ -1340,43 +1337,34 @@ def _notify_tg_wa(event: str, wa_user=None, error: str = ""):
     threading.Thread(target=_send, daemon=True).start()
 
 def send_otp_email(to_email: str, otp: str, nama: str = "") -> tuple:
-    """Kirim OTP via Email (SMTP Gmail). Return (success, message)."""
-    if not SMTP_ENABLED:
-        logger.warning("[OTP-EMAIL] SMTP belum dikonfigurasi. Set SMTP_USER dan SMTP_PASS.")
-        return False, "Email tidak dikonfigurasi. Hubungi admin."
+    """Kirim OTP via Resend API (HTTP — tidak kena blokir Railway)."""
+    if not EMAIL_ENABLED:
+        logger.warning("[OTP-EMAIL] RESEND_API_KEY belum diset.")
+        return False, "Email belum dikonfigurasi. Hubungi admin."
 
-    sender_name = SMTP_FROM or "KY-SHIRO OFFICIAL"
-    subject     = f"Kode OTP Kamu — {otp}"
+    subject   = f"Kode OTP Kamu — {otp}"
+    nama_safe = nama or "Pengguna"
 
-    # HTML email template
     html_body = f"""<!DOCTYPE html>
 <html>
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-</head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#0d0d1a;font-family:'Segoe UI',Arial,sans-serif">
   <div style="max-width:480px;margin:40px auto;background:#13132a;border-radius:16px;overflow:hidden;border:1px solid #2a2a4a">
-    <!-- Header -->
     <div style="background:linear-gradient(135deg,#7c6fff,#a78bfa);padding:28px 32px;text-align:center">
       <div style="font-size:28px;font-weight:900;color:#fff;letter-spacing:2px">KY-SHIRO</div>
       <div style="color:rgba(255,255,255,0.8);font-size:13px;margin-top:4px">iVAS SMS Platform</div>
     </div>
-    <!-- Body -->
     <div style="padding:32px">
       <p style="color:#c8c8e8;font-size:15px;margin:0 0 24px">
-        Halo <strong style="color:#fff">{nama or "Pengguna"}</strong>,<br>
+        Halo <strong style="color:#fff">{nama_safe}</strong>,<br>
         Berikut kode OTP untuk verifikasi akunmu:
       </p>
-      <!-- OTP Box -->
       <div style="background:#1e1e3a;border:2px solid #7c6fff;border-radius:12px;padding:24px;text-align:center;margin:0 0 24px">
         <div style="color:#9090b8;font-size:12px;letter-spacing:3px;text-transform:uppercase;margin-bottom:8px">Kode OTP</div>
         <div style="font-size:42px;font-weight:900;color:#a78bfa;letter-spacing:10px;font-family:monospace">{otp}</div>
       </div>
-      <p style="color:#9090b8;font-size:13px;margin:0 0 8px">⏰ Berlaku <strong>5 menit</strong> sejak email ini dikirim.</p>
-      <p style="color:#9090b8;font-size:13px;margin:0">🔒 Jangan bagikan kode ini kepada siapapun.</p>
+      <p style="color:#9090b8;font-size:13px;margin:0 0 8px">⏰ Berlaku <strong>5 menit</strong>. Jangan bagikan ke siapapun.</p>
     </div>
-    <!-- Footer -->
     <div style="background:#0d0d1a;padding:16px 32px;text-align:center;border-top:1px solid #1e1e3a">
       <p style="color:#555580;font-size:11px;margin:0">KY-SHIRO OFFICIAL &bull; iVAS SMS Platform</p>
     </div>
@@ -1384,32 +1372,40 @@ def send_otp_email(to_email: str, otp: str, nama: str = "") -> tuple:
 </body>
 </html>"""
 
-    text_body = f"Halo {nama or 'Pengguna'}!\n\nKode OTP kamu: {otp}\n\nBerlaku 5 menit. Jangan bagikan ke siapapun.\n\n— KY-SHIRO OFFICIAL"
+    text_body = f"Halo {nama_safe}!\n\nKode OTP kamu: {otp}\n\nBerlaku 5 menit. Jangan bagikan.\n\n— KY-SHIRO"
 
     try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"]    = f"{sender_name} <{SMTP_USER}>"
-        msg["To"]      = to_email
+        resp = req_lib.post(
+            "https://api.resend.com/emails",
+            headers={
+                "Authorization": f"Bearer {RESEND_API_KEY}",
+                "Content-Type":  "application/json",
+            },
+            json={
+                "from":    RESEND_FROM,
+                "to":      [to_email],
+                "subject": subject,
+                "html":    html_body,
+                "text":    text_body,
+            },
+            timeout=15
+        )
+        data = {}
+        try: data = resp.json()
+        except: pass
 
-        msg.attach(MIMEText(text_body, "plain", "utf-8"))
-        msg.attach(MIMEText(html_body, "html",  "utf-8"))
+        if resp.status_code in (200, 201):
+            logger.info(f"[OTP-EMAIL] ✅ Terkirim ke {to_email} (id={data.get('id','-')})")
+            return True, "OTP terkirim via Email"
+        else:
+            err_msg = data.get("message") or data.get("error") or resp.text[:100]
+            logger.error(f"[OTP-EMAIL] ❌ Resend error {resp.status_code}: {err_msg}")
+            return False, f"Gagal kirim email: {err_msg}"
 
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as server:
-            server.ehlo()
-            server.starttls()
-            server.login(SMTP_USER, SMTP_PASS)
-            server.sendmail(SMTP_USER, to_email, msg.as_string())
-
-        logger.info(f"[OTP-EMAIL] ✅ Terkirim ke {to_email}")
-        return True, "OTP terkirim via Email"
-
-    except smtplib.SMTPAuthenticationError:
-        logger.error("[OTP-EMAIL] ❌ Auth gagal — cek SMTP_USER/SMTP_PASS (pakai App Password Gmail)")
-        return False, "Gagal autentikasi email. Hubungi admin."
     except Exception as e:
-        logger.error(f"[OTP-EMAIL] ❌ Error: {e}")
+        logger.error(f"[OTP-EMAIL] ❌ Exception: {e}")
         return False, f"Gagal kirim email: {str(e)}"
+
 
 
 def send_otp(nomor_wa: str, email: str, otp: str, nama: str = "") -> tuple:
