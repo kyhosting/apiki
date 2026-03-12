@@ -1292,7 +1292,7 @@ WA_TOKEN = os.getenv("WA_BOT_TOKEN","kyshiro-wa-secret")
 # Daftar gratis: https://resend.com → API Keys → buat key
 # Gmail sender: perlu verifikasi domain ATAU pakai onboarding@resend.dev dulu untuk test
 RESEND_API_KEY  = os.getenv("RESEND_API_KEY", "re_ekEJRvRp_8w9W1vH2K8n9XTuu4tDMgbBR")
-RESEND_FROM     = os.getenv("RESEND_FROM",    "KY-SHIRO OFFICIAL <onboarding@resend.dev>")
+RESEND_FROM     = os.getenv("RESEND_FROM",    "KY-SHIRO OFFICIAL <noreply@serverkicen.biz.id>")
 EMAIL_ENABLED   = bool(RESEND_API_KEY)
 
 # ── Telegram Bot Notifikasi ──────────────────────────────────────
