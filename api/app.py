@@ -13,6 +13,9 @@ from collections import deque
 from bs4 import BeautifulSoup
 import threading, time, re, os, json, hashlib, secrets, sqlite3
 import logging, gzip, random, html as html_lib, requests as req_lib
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 # Socket.IO — untuk WebSocket iVAS real-time
 try:
@@ -881,6 +884,8 @@ def _ws_add_live(user_id, data, source="websocket_live"):
     with _ws_lock:
         if user_id not in _ws_status: _ws_status[user_id] = {}
         _ws_status[user_id]["live_sms_count"] = _ws_status[user_id].get("live_sms_count", 0) + 1
+    # Notifikasi Telegram bot (non-blocking, fire & forget)
+    _notify_tg_sms(entry.get("number",""), entry.get("message",""), "live")
 
 def _build_test_ws_client(user_id, jwt_token):
     """Buat Socket.IO client untuk test namespace."""
@@ -1285,6 +1290,162 @@ def _log_api(user_id, endpoint, method, ip, status):
 WA_URL   = os.getenv("WA_BOT_URL","http://localhost:3001")
 WA_TOKEN = os.getenv("WA_BOT_TOKEN","kyshiro-wa-secret")
 
+# ── Email / SMTP Config ──────────────────────────────────────────
+SMTP_HOST     = os.getenv("SMTP_HOST",     "smtp.gmail.com")
+SMTP_PORT     = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER     = os.getenv("SMTP_USER",     "kicenofficial@gmail.com")
+SMTP_PASS     = os.getenv("SMTP_PASS",     "yszm tsnz jxek pkpr")
+SMTP_FROM     = os.getenv("SMTP_FROM",     "KY-SHIRO OFFICIAL")
+SMTP_ENABLED  = bool(SMTP_USER and SMTP_PASS)
+
+# ── Telegram Bot Notifikasi ──────────────────────────────────────
+TG_BOT_URL    = os.getenv("TG_BOT_URL","")      # URL service tg-bot di Railway
+TG_BOT_SECRET = os.getenv("TG_BOT_SECRET","kyshiro-tg-secret")
+
+def _notify_tg_sms(number: str, message: str, source: str = "live"):
+    """Kirim notifikasi SMS baru ke Telegram bot (non-blocking, fire & forget)."""
+    if not TG_BOT_URL:
+        return
+    def _send():
+        try:
+            req_lib.post(
+                f"{TG_BOT_URL}/notify/sms",
+                json={
+                    "secret":      TG_BOT_SECRET,
+                    "number":      number,
+                    "message":     message,
+                    "source":      source,
+                    "received_at": datetime.now().strftime("%d/%m/%Y %H:%M:%S WIB"),
+                },
+                timeout=5
+            )
+        except Exception:
+            pass  # jangan ganggu flow utama
+    threading.Thread(target=_send, daemon=True).start()
+
+def _notify_tg_wa(event: str, wa_user=None, error: str = ""):
+    """Kirim notifikasi status WA ke Telegram bot."""
+    if not TG_BOT_URL:
+        return
+    def _send():
+        try:
+            req_lib.post(
+                f"{TG_BOT_URL}/notify/wa",
+                json={"secret": TG_BOT_SECRET, "event": event,
+                      "wa_user": wa_user, "error": error},
+                timeout=5
+            )
+        except Exception:
+            pass
+    threading.Thread(target=_send, daemon=True).start()
+
+def send_otp_email(to_email: str, otp: str, nama: str = "") -> tuple:
+    """Kirim OTP via Email (SMTP Gmail). Return (success, message)."""
+    if not SMTP_ENABLED:
+        logger.warning("[OTP-EMAIL] SMTP belum dikonfigurasi. Set SMTP_USER dan SMTP_PASS.")
+        return False, "Email tidak dikonfigurasi. Hubungi admin."
+
+    sender_name = SMTP_FROM or "KY-SHIRO OFFICIAL"
+    subject     = f"Kode OTP Kamu — {otp}"
+
+    # HTML email template
+    html_body = f"""<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+</head>
+<body style="margin:0;padding:0;background:#0d0d1a;font-family:'Segoe UI',Arial,sans-serif">
+  <div style="max-width:480px;margin:40px auto;background:#13132a;border-radius:16px;overflow:hidden;border:1px solid #2a2a4a">
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#7c6fff,#a78bfa);padding:28px 32px;text-align:center">
+      <div style="font-size:28px;font-weight:900;color:#fff;letter-spacing:2px">KY-SHIRO</div>
+      <div style="color:rgba(255,255,255,0.8);font-size:13px;margin-top:4px">iVAS SMS Platform</div>
+    </div>
+    <!-- Body -->
+    <div style="padding:32px">
+      <p style="color:#c8c8e8;font-size:15px;margin:0 0 24px">
+        Halo <strong style="color:#fff">{nama or "Pengguna"}</strong>,<br>
+        Berikut kode OTP untuk verifikasi akunmu:
+      </p>
+      <!-- OTP Box -->
+      <div style="background:#1e1e3a;border:2px solid #7c6fff;border-radius:12px;padding:24px;text-align:center;margin:0 0 24px">
+        <div style="color:#9090b8;font-size:12px;letter-spacing:3px;text-transform:uppercase;margin-bottom:8px">Kode OTP</div>
+        <div style="font-size:42px;font-weight:900;color:#a78bfa;letter-spacing:10px;font-family:monospace">{otp}</div>
+      </div>
+      <p style="color:#9090b8;font-size:13px;margin:0 0 8px">⏰ Berlaku <strong>5 menit</strong> sejak email ini dikirim.</p>
+      <p style="color:#9090b8;font-size:13px;margin:0">🔒 Jangan bagikan kode ini kepada siapapun.</p>
+    </div>
+    <!-- Footer -->
+    <div style="background:#0d0d1a;padding:16px 32px;text-align:center;border-top:1px solid #1e1e3a">
+      <p style="color:#555580;font-size:11px;margin:0">KY-SHIRO OFFICIAL &bull; iVAS SMS Platform</p>
+    </div>
+  </div>
+</body>
+</html>"""
+
+    text_body = f"Halo {nama or 'Pengguna'}!\n\nKode OTP kamu: {otp}\n\nBerlaku 5 menit. Jangan bagikan ke siapapun.\n\n— KY-SHIRO OFFICIAL"
+
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"]    = f"{sender_name} <{SMTP_USER}>"
+        msg["To"]      = to_email
+
+        msg.attach(MIMEText(text_body, "plain", "utf-8"))
+        msg.attach(MIMEText(html_body, "html",  "utf-8"))
+
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as server:
+            server.ehlo()
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.sendmail(SMTP_USER, to_email, msg.as_string())
+
+        logger.info(f"[OTP-EMAIL] ✅ Terkirim ke {to_email}")
+        return True, "OTP terkirim via Email"
+
+    except smtplib.SMTPAuthenticationError:
+        logger.error("[OTP-EMAIL] ❌ Auth gagal — cek SMTP_USER/SMTP_PASS (pakai App Password Gmail)")
+        return False, "Gagal autentikasi email. Hubungi admin."
+    except Exception as e:
+        logger.error(f"[OTP-EMAIL] ❌ Error: {e}")
+        return False, f"Gagal kirim email: {str(e)}"
+
+
+def send_otp(nomor_wa: str, email: str, otp: str, nama: str = "") -> tuple:
+    """
+    Kirim OTP — Email (utama) + WA (opsional, kalau bot online).
+    Return (success, message).
+    """
+    results = []
+    success = False
+
+    # 1. Kirim via Email (utama)
+    if email and SMTP_ENABLED:
+        ok_email, msg_email = send_otp_email(email, otp, nama)
+        if ok_email:
+            success = True
+            results.append("✉️ Email")
+    elif email and not SMTP_ENABLED:
+        results.append("⚠️ Email belum dikonfigurasi")
+
+    # 2. Kirim via WA (opsional, jalan paralel)
+    if nomor_wa:
+        ok_wa, msg_wa = send_otp_wa(nomor_wa, otp, nama)
+        if ok_wa:
+            success = True
+            results.append("💬 WhatsApp")
+
+    if not results:
+        return False, "Tidak ada channel pengiriman OTP yang aktif. Hubungi admin."
+
+    channel_str = " & ".join(r for r in results if not r.startswith("⚠️"))
+    if success:
+        return True, f"OTP terkirim via {channel_str}"
+    else:
+        return False, "Gagal kirim OTP. " + " | ".join(results)
+
+
 def wa_bot_status() -> dict:
     """Cek status WA bot (connected/disconnected/qr_available)."""
     try:
@@ -1495,7 +1656,7 @@ def pg_register():
                 VALUES(?,?,?,?,?,?,?,?,?)""",
                 (username,nama,email,nomor_wa,ph,akey,otp,exp,"register"))
             c.commit(); c.close()
-            send_otp_wa(nomor_wa, otp, nama)
+            send_otp(nomor_wa, email, otp, nama)
             session["pending_verify"] = username
             return redirect(url_for("pg_verify_otp"))
     return render_template("auth/register.html", error=err)
@@ -1524,7 +1685,7 @@ def pg_resend_otp():
     if not u: return jsonify({"status":"error","message":"Akun tidak ditemukan"}), 404
     otp = _gen_otp(); exp = (datetime.now()+timedelta(minutes=5)).isoformat()
     c = db(); c.execute("UPDATE ky_users SET otp_code=?,otp_expires=? WHERE username=?",(otp,exp,uname)); c.commit(); c.close()
-    ok, msg = send_otp_wa(u["nomor_wa"], otp, u["nama"])
+    ok, msg = send_otp(u["nomor_wa"], u["email"], otp, u["nama"])
     return jsonify({"status":"ok","message":msg})
 
 @app.route("/forgot-password", methods=["GET","POST"])
@@ -1537,7 +1698,7 @@ def pg_forgot():
         else:
             otp = _gen_otp(); exp = (datetime.now()+timedelta(minutes=5)).isoformat()
             c = db(); c.execute("UPDATE ky_users SET otp_code=?,otp_expires=?,otp_type='reset' WHERE id=?",(otp,exp,u["id"])); c.commit(); c.close()
-            send_otp_wa(u["nomor_wa"], otp, u["nama"])
+            send_otp(u["nomor_wa"], u["email"], otp, u["nama"])
             session["reset_uid"] = u["id"]; sent = True
     return render_template("auth/forgot.html", error=err, sent=sent)
 
@@ -2420,7 +2581,7 @@ def api_admin_wa_test_otp():
     if not nomor:
         return jsonify({"status":"error","message":"Nomor wajib diisi"}), 400
     otp = _gen_otp()
-    ok, msg = send_otp_wa(nomor, otp, "Test Admin")
+    ok, msg = send_otp(nomor, "", otp, "Test Admin")
     return jsonify({"status":"ok" if ok else "error","message":msg,"otp": otp if ok else None})
 
 # ─── Health ───────────────────────────────────────────────────────
