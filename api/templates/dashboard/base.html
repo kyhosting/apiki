@@ -216,6 +216,15 @@ async function pollIvasStatus(){
       if(pill) pill.style.display='none';
       wsInd.textContent='';
 
+      // Kalau tidak ada ivas_email di response → belum setup, STOP reconnect
+      if(!d.ivas_email){
+        _ivasNoCredentials = true;
+        lbl.textContent='iVAS: Belum Login';
+        em.textContent='Setup iVAS dulu';
+        dot.className='dot dot-red';
+        return;
+      }
+
       // Anti-spam: hanya coba reconnect kalau flag bebas
       if(!_ivasReconnecting){
         _ivasReconnecting = true;

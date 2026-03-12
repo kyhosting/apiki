@@ -231,6 +231,8 @@ async function loadWaStatus() {
 
 // ── QR Loader ──────────────────────────────────────
 async function loadQR() {
+  // Guard: jangan load QR kalau WA sudah connected
+  if (_waConnected) return
   document.getElementById('qr-loading').style.display = 'flex'
   document.getElementById('qr-img').style.display = 'none'
   document.getElementById('qr-connected').style.display = 'none'
@@ -239,6 +241,7 @@ async function loadQR() {
     if (!d) return
     const qr = d.qr || {}
     if (qr.status === 'connected') {
+      _waConnected = true
       showQrConnected(qr.wa_user)
     } else if (qr.status === 'qr' && qr.qr_data_url) {
       document.getElementById('qr-loading').style.display = 'none'
@@ -246,13 +249,12 @@ async function loadQR() {
       img.src = qr.qr_data_url
       img.style.display = 'block'
     } else {
-      // Waiting — auto retry
+      // WA bot offline/waiting — tampilkan status, JANGAN auto-retry loop
       document.getElementById('qr-loading').style.display = 'flex'
-      setTimeout(loadQR, 4000)
     }
   } catch(e) {
+    // Error — jangan retry otomatis, tunggu interval 30s atau klik manual
     document.getElementById('qr-loading').style.display = 'flex'
-    setTimeout(loadQR, 5000)
   }
 }
 
@@ -409,16 +411,25 @@ async function loadWaStatusSafe(){
 }
 
 loadWaStatus();
-loadQR();
+
+// QR hanya load kalau tab QR sedang aktif
+const _qrTab = document.querySelector('[onclick*="loadQR"]') || document.getElementById('tab-qr')
+if(document.getElementById('qr-loading') && document.getElementById('qr-loading').style.display !== 'none') {
+  loadQR();
+}
 
 // Status check tiap 30 detik
 setInterval(loadWaStatusSafe, 30000);
 
-// QR refresh tiap 30 detik — HANYA kalau WA belum connected dan QR sedang tampil
+// QR refresh tiap 30 detik — HANYA kalau WA belum connected dan QR visible
 setInterval(()=>{
-  if(_waConnected) return; // WA sudah connected, skip
-  const img = document.getElementById('qr-img');
-  if(img && img.style.display !== 'none') loadQR();
+  if(_waConnected) return;
+  const qrSection = document.getElementById('qr-loading');
+  const qrImg = document.getElementById('qr-img');
+  // Hanya refresh kalau tab QR aktif (visible di viewport)
+  if(qrSection && (qrSection.style.display !== 'none' || (qrImg && qrImg.style.display !== 'none'))){
+    loadQR();
+  }
 }, 30000);
 </script>
 {% endblock %}
